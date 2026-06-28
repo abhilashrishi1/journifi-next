@@ -181,7 +181,7 @@ function PnlCalendar({ trades, T }) {
           const intensity = pnl ? Math.min(Math.abs(pnl)/maxAbs*0.8+0.2, 1) : 0;
           const bg = pnl > 0 ? `rgba(34,197,94,${intensity})` : pnl < 0 ? `rgba(239,68,68,${intensity})` : T.glassBg;
           return (
-            <div key={day} style={{ aspectRatio:'1', borderRadius:6, background:bg, border:`1px solid ${T.glassBorder}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor: pnl ? 'pointer' : 'default' }}>
+            <div key={day} style={{ aspectRatio:'1', maxHeight:64, borderRadius:6, background:bg, border:`1px solid ${T.glassBorder}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor: pnl ? 'pointer' : 'default' }}>
               <span style={{ fontSize:11, color:T.text, fontWeight:500 }}>{day}</span>
               {pnl ? <span style={{ fontSize:9, color: pnl>0?T.green:T.red, fontWeight:700 }}>{pnl>0?'+':''}${Math.abs(pnl).toFixed(0)}</span> : null}
             </div>
