@@ -15,13 +15,21 @@ function getSupabase() {
   return _supabase;
 }
 
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const ASSET_TYPES = ['All','Stocks','Options','Futures','Forex','Crypto'];
+
 const EMPTY_TRADE = {
   date: new Date().toISOString().split('T')[0],
-  ticker:'', option_type:'CALL', strike:'', expiry:'',
-  contracts:'1', entry_price:'', exit_price:'', pnl:'',
-  setup:'', outcome:'WIN', notes:'',
+  asset_type: 'options',
+  ticker: '', direction: 'LONG', option_type: 'CALL',
+  strike: '', expiry: '', dte: '', contracts: '1',
+  shares: '', lots: '',
+  entry_price: '', exit_price: '', pips: '',
+  pnl: '', commission: '0',
+  setup: '', outcome: 'WIN', notes: '',
+  entry_time: '', exit_time: '', market_condition: '',
+  strategy_id: '',
 };
-const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 function getDateRange(preset) {
   const now = new Date();
@@ -39,29 +47,770 @@ function getDateRange(preset) {
 function Logo({ light, size='md' }) {
   const t = light ? '#0a0c14' : '#fff';
   const a = '#00C4B4';
-  const fs = size==='lg' ? 32 : size==='xl' ? 52 : 19;
-  const w = size==='lg' ? 240 : size==='xl' ? 380 : 148;
-  const h = size==='lg' ? 52 : size==='xl' ? 80 : 32;
-  const ox = size==='lg' ? 52 : size==='xl' ? 80 : 33;
-  const jx = size==='lg' ? 52 : size==='xl' ? 80 : 33;
-  const tx = size==='lg' ? 52+14 : size==='xl' ? 80+22 : 43;
-  const ty = size==='lg' ? 38 : size==='xl' ? 60 : 23;
-  const sw = size==='lg' ? 3.5 : size==='xl' ? 5 : 2.2;
-  const pts = size==='xl'
-    ? "4,60 4,20 18,44 32,28 46,36 60,10"
-    : size==='lg'
-    ? "4,42 4,14 12,32 20,20 28,26 36,8"
-    : "2,26 2,8 8,20 14,12 20,16 26,4";
-  const cr = size==='xl' ? 5 : size==='lg' ? 3.5 : 2.2;
-  const cx2 = size==='xl' ? 60 : size==='lg' ? 36 : 26;
-  const cy2 = size==='xl' ? 10 : size==='lg' ? 8 : 4;
+  const configs = {
+    sm: { w:120, h:28, fs:16, jx:28, tx:38, ty:20, pts:'2,22 2,6 6,16 11,10 16,13 21,3', cr:2, cx:21, cy:3, sw:2 },
+    md: { w:148, h:32, fs:19, jx:33, tx:43, ty:23, pts:'2,26 2,8 8,20 14,12 20,16 26,4', cr:2.2, cx:26, cy:4, sw:2.2 },
+    lg: { w:220, h:48, fs:30, jx:48, tx:65, ty:36, pts:'4,40 4,12 12,30 20,18 28,24 36,6', cr:3.5, cx:36, cy:6, sw:3.2 },
+  };
+  const c = configs[size] || configs.md;
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none">
-      <polyline points={pts} stroke={a} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-      <circle cx={cx2} cy={cy2} r={cr} fill={a}/>
-      <text x={jx} y={ty} fontFamily="'IBM Plex Sans',system-ui,sans-serif" fontWeight="800" fontSize={fs} fill={a}>J</text>
-      <text x={tx} y={ty} fontFamily="'IBM Plex Sans',system-ui,sans-serif" fontWeight="800" fontSize={fs} fill={t}>ournifi</text>
+    <svg width={c.w} height={c.h} viewBox={`0 0 ${c.w} ${c.h}`} fill="none">
+      <polyline points={c.pts} stroke={a} strokeWidth={c.sw} strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <circle cx={c.cx} cy={c.cy} r={c.cr} fill={a}/>
+      <text x={c.jx} y={c.ty} fontFamily="'IBM Plex Sans',system-ui,sans-serif" fontWeight="800" fontSize={c.fs} fill={a}>J</text>
+      <text x={c.tx} y={c.ty} fontFamily="'IBM Plex Sans',system-ui,sans-serif" fontWeight="800" fontSize={c.fs} fill={t}>ournifi</text>
     </svg>
+  );
+}
+
+// ── MINI CHART (SVG line chart) ───────────────────────────────────────────────
+function MiniLineChart({ data, color, height=60 }) {
+  if (!data || data.length < 2) return null;
+  const w = 300, h = height;
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 8) - 4;
+    return `${x},${y}`;
+  }).join(' ');
+  const fillPts = `0,${h} ${pts} ${w},${h}`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width:'100%', height }} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={`grad-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points={fillPts} fill={`url(#grad-${color.replace('#','')})`}/>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// ── BAR CHART ─────────────────────────────────────────────────────────────────
+function BarChart({ data, T }) {
+  if (!data || data.length === 0) return <div style={{color:T.textMuted,fontSize:13,textAlign:'center',padding:20}}>No data</div>;
+  const max = Math.max(...data.map(d => Math.abs(d.value)), 1);
+  return (
+    <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:120, padding:'8px 0' }}>
+      {data.map((d, i) => {
+        const pct = Math.abs(d.value) / max * 100;
+        const pos = d.value >= 0;
+        return (
+          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, height:'100%', justifyContent:'flex-end' }}>
+            <div style={{ fontSize:10, color:T.textMuted, textAlign:'center' }}>{d.value >= 0 ? '+' : ''}${Math.abs(d.value).toFixed(0)}</div>
+            <div style={{ width:'100%', height:`${pct}%`, minHeight:2, background: pos ? T.green : T.red, borderRadius:'3px 3px 0 0', opacity:0.85 }}/>
+            <div style={{ fontSize:11, color:T.textMuted, textAlign:'center', whiteSpace:'nowrap' }}>{d.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── DONUT CHART ───────────────────────────────────────────────────────────────
+function DonutChart({ wins, losses, breakeven, T }) {
+  const total = wins + losses + breakeven || 1;
+  const winPct = wins / total;
+  const lossPct = losses / total;
+  const r = 40, cx = 60, cy = 60, circ = 2 * Math.PI * r;
+  const winDash = winPct * circ;
+  const lossDash = lossPct * circ;
+  const beDash = circ - winDash - lossDash;
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:20 }}>
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={T.textFaint} strokeWidth="12"/>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={T.green} strokeWidth="12" strokeDasharray={`${winDash} ${circ-winDash}`} strokeDashoffset={circ/4} strokeLinecap="round"/>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={T.red} strokeWidth="12" strokeDasharray={`${lossDash} ${circ-lossDash}`} strokeDashoffset={circ/4 - winDash} strokeLinecap="round"/>
+        <text x={cx} y={cy-6} textAnchor="middle" fontSize="16" fontWeight="800" fill={T.text}>{Math.round(winPct*100)}%</text>
+        <text x={cx} y={cy+12} textAnchor="middle" fontSize="10" fill={T.textMuted}>Win Rate</text>
+      </svg>
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {[{label:'Wins', val:wins, color:T.green},{label:'Losses', val:losses, color:T.red},{label:'Breakeven', val:breakeven, color:T.textMuted}].map(item=>(
+          <div key={item.label} style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <div style={{ width:10, height:10, borderRadius:'50%', background:item.color, flexShrink:0 }}/>
+            <span style={{ fontSize:13, color:T.textMuted }}>{item.label}</span>
+            <span style={{ fontSize:13, fontWeight:700, color:T.text, marginLeft:'auto' }}>{item.val}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── P&L CALENDAR ─────────────────────────────────────────────────────────────
+function PnlCalendar({ trades, T }) {
+  const [month, setMonth] = useState(new Date());
+  const year = month.getFullYear(), mon = month.getMonth();
+  const firstDay = new Date(year, mon, 1).getDay();
+  const daysInMonth = new Date(year, mon+1, 0).getDate();
+
+  const dayMap = useMemo(() => {
+    const m = {};
+    trades.forEach(t => {
+      const d = t.date?.split('T')[0];
+      if (!d) return;
+      const [y, mo, day] = d.split('-').map(Number);
+      if (y === year && mo-1 === mon) {
+        m[day] = (m[day] || 0) + (parseFloat(t.pnl) || 0);
+      }
+    });
+    return m;
+  }, [trades, year, mon]);
+
+  const maxAbs = Math.max(...Object.values(dayMap).map(Math.abs), 1);
+
+  return (
+    <div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <button onClick={()=>setMonth(new Date(year,mon-1,1))} style={{ background:T.glassBg, border:`1px solid ${T.glassBorder}`, borderRadius:8, padding:'6px 12px', color:T.textMuted, cursor:'pointer', fontSize:14 }}>‹</button>
+        <span style={{ color:T.text, fontWeight:600, fontSize:15 }}>{month.toLocaleString('default',{month:'long',year:'numeric'})}</span>
+        <button onClick={()=>setMonth(new Date(year,mon+1,1))} style={{ background:T.glassBg, border:`1px solid ${T.glassBorder}`, borderRadius:8, padding:'6px 12px', color:T.textMuted, cursor:'pointer', fontSize:14 }}>›</button>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4 }}>
+        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=>(
+          <div key={d} style={{ textAlign:'center', fontSize:11, color:T.textMuted, padding:'4px 0', fontWeight:600 }}>{d}</div>
+        ))}
+        {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`}/>)}
+        {Array.from({length:daysInMonth}).map((_,i)=>{
+          const day = i+1;
+          const pnl = dayMap[day];
+          const intensity = pnl ? Math.min(Math.abs(pnl)/maxAbs*0.8+0.2, 1) : 0;
+          const bg = pnl > 0 ? `rgba(34,197,94,${intensity})` : pnl < 0 ? `rgba(239,68,68,${intensity})` : T.glassBg;
+          return (
+            <div key={day} style={{ aspectRatio:'1', borderRadius:6, background:bg, border:`1px solid ${T.glassBorder}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor: pnl ? 'pointer' : 'default' }}>
+              <span style={{ fontSize:11, color:T.text, fontWeight:500 }}>{day}</span>
+              {pnl ? <span style={{ fontSize:9, color: pnl>0?T.green:T.red, fontWeight:700 }}>{pnl>0?'+':''}${Math.abs(pnl).toFixed(0)}</span> : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── TRADE FORM ────────────────────────────────────────────────────────────────
+function TradeModal({ T, session, strategies, onClose, onSaved }) {
+  const [form, setForm] = useState(EMPTY_TRADE);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm(prev => {
+      const u = { ...prev, [name]: value };
+      if (['entry_price','exit_price','contracts','shares','lots'].includes(name)) {
+        const en = parseFloat(u.entry_price), ex = parseFloat(u.exit_price);
+        if (!isNaN(en) && !isNaN(ex)) {
+          const qty = u.asset_type==='options' ? (parseFloat(u.contracts)||1)*100
+                    : u.asset_type==='stocks' ? (parseFloat(u.shares)||1)
+                    : u.asset_type==='forex' ? (parseFloat(u.lots)||1)*100000
+                    : (parseFloat(u.contracts)||1);
+          u.pnl = ((ex-en)*qty*(u.direction==='SHORT'?-1:1)).toFixed(2);
+        }
+      }
+      return u;
+    });
+  }
+
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true); setError('');
+    const sb = getSupabase();
+    const payload = {
+      user_id: session.user.id,
+      date: form.date,
+      asset_type: form.asset_type,
+      ticker: form.ticker.toUpperCase(),
+      direction: form.direction,
+      option_type: form.asset_type==='options' ? form.option_type : null,
+      strike: parseFloat(form.strike)||null,
+      expiry: form.expiry||null,
+      dte: parseInt(form.dte)||null,
+      contracts: ['options','futures'].includes(form.asset_type) ? parseInt(form.contracts)||1 : null,
+      shares: form.asset_type==='stocks' ? parseFloat(form.shares)||null : null,
+      lots: form.asset_type==='forex' ? parseFloat(form.lots)||null : null,
+      entry_price: parseFloat(form.entry_price)||null,
+      exit_price: parseFloat(form.exit_price)||null,
+      pips: parseFloat(form.pips)||null,
+      pnl: parseFloat(form.pnl)||null,
+      commission: parseFloat(form.commission)||0,
+      setup: form.setup,
+      outcome: form.outcome,
+      notes: form.notes,
+      entry_time: form.entry_time||null,
+      exit_time: form.exit_time||null,
+      market_condition: form.market_condition||null,
+      strategy_id: form.strategy_id||null,
+    };
+    const { error: err } = await sb.from('trades').insert(payload);
+    setSaving(false);
+    if (err) setError(err.message);
+    else { onSaved(); onClose(); }
+  }
+
+  const inp = { padding:'9px 12px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:8, color:T.text, fontSize:13, outline:'none', width:'100%', fontFamily:'inherit' };
+  const lbl = { display:'block', fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, marginBottom:5 };
+  const grp = (span=1) => ({ gridColumn:`span ${span}` });
+
+  const at = form.asset_type;
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:16 }} onClick={onClose}>
+      <div style={{ background:T.modalBg, border:`1px solid ${T.glassBorder}`, borderRadius:16, padding:28, width:'100%', maxWidth:680, maxHeight:'92vh', overflowY:'auto' }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h2 style={{ fontSize:18, fontWeight:700, color:T.text }}>Log Trade</h2>
+          <button onClick={onClose} style={{ background:'transparent', border:'none', color:T.textMuted, fontSize:22, cursor:'pointer' }}>✕</button>
+        </div>
+
+        {/* Asset Type Selector */}
+        <div style={{ display:'flex', gap:6, marginBottom:20, flexWrap:'wrap' }}>
+          {['options','stocks','forex','futures','crypto'].map(type => (
+            <button key={type} onClick={()=>setForm(f=>({...f,asset_type:type}))} style={{ padding:'7px 16px', borderRadius:20, border:`1px solid ${form.asset_type===type?T.accent:T.glassBorder}`, background:form.asset_type===type?T.accent:T.glassBg, color:form.asset_type===type?'#000':T.textMuted, fontSize:13, fontWeight:form.asset_type===type?700:400, cursor:'pointer', textTransform:'capitalize' }}>
+              {type==='options'?'📈':type==='stocks'?'🏢':type==='forex'?'💱':type==='futures'?'⚡':type==='crypto'?'₿':''} {type}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSave}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+
+            {/* Common fields */}
+            <div><label style={lbl}>Date</label><input style={inp} type="date" name="date" value={form.date} onChange={handleChange} required/></div>
+            <div><label style={lbl}>Ticker / Symbol</label><input style={inp} type="text" name="ticker" placeholder={at==='forex'?'EUR/USD':at==='crypto'?'BTC':'SPY'} value={form.ticker} onChange={handleChange} required/></div>
+            <div>
+              <label style={lbl}>Direction</label>
+              <select style={inp} name="direction" value={form.direction} onChange={handleChange}>
+                <option value="LONG">Long / Buy</option>
+                <option value="SHORT">Short / Sell</option>
+              </select>
+            </div>
+
+            {/* Options specific */}
+            {at==='options' && <>
+              <div><label style={lbl}>Type</label><select style={inp} name="option_type" value={form.option_type} onChange={handleChange}><option value="CALL">CALL</option><option value="PUT">PUT</option></select></div>
+              <div><label style={lbl}>Strike</label><input style={inp} type="number" name="strike" placeholder="500" value={form.strike} onChange={handleChange}/></div>
+              <div><label style={lbl}>Expiry</label><input style={inp} type="date" name="expiry" value={form.expiry} onChange={handleChange}/></div>
+              <div><label style={lbl}>DTE</label><input style={inp} type="number" name="dte" placeholder="0" value={form.dte} onChange={handleChange}/></div>
+              <div><label style={lbl}>Contracts</label><input style={inp} type="number" name="contracts" min="1" value={form.contracts} onChange={handleChange}/></div>
+            </>}
+
+            {/* Stocks specific */}
+            {at==='stocks' && <>
+              <div><label style={lbl}>Shares</label><input style={inp} type="number" name="shares" placeholder="100" value={form.shares} onChange={handleChange}/></div>
+            </>}
+
+            {/* Forex specific */}
+            {at==='forex' && <>
+              <div><label style={lbl}>Lots</label><input style={inp} type="number" step="0.01" name="lots" placeholder="0.10" value={form.lots} onChange={handleChange}/></div>
+              <div><label style={lbl}>Pips</label><input style={inp} type="number" step="0.1" name="pips" placeholder="15" value={form.pips} onChange={handleChange}/></div>
+            </>}
+
+            {/* Futures specific */}
+            {at==='futures' && <>
+              <div><label style={lbl}>Contracts</label><input style={inp} type="number" name="contracts" min="1" value={form.contracts} onChange={handleChange}/></div>
+            </>}
+
+            {/* Crypto specific */}
+            {at==='crypto' && <>
+              <div><label style={lbl}>Amount</label><input style={inp} type="number" step="0.0001" name="shares" placeholder="0.5" value={form.shares} onChange={handleChange}/></div>
+            </>}
+
+            {/* Price fields - all types */}
+            <div><label style={lbl}>Entry Price</label><input style={inp} type="number" step="0.0001" name="entry_price" placeholder="0.00" value={form.entry_price} onChange={handleChange}/></div>
+            <div><label style={lbl}>Exit Price</label><input style={inp} type="number" step="0.0001" name="exit_price" placeholder="0.00" value={form.exit_price} onChange={handleChange}/></div>
+            <div><label style={lbl}>P&L (auto)</label><input style={{...inp, color:parseFloat(form.pnl)>=0?T.green:T.red, fontWeight:700}} type="number" step="0.01" name="pnl" placeholder="0.00" value={form.pnl} onChange={handleChange}/></div>
+
+            {/* Time fields */}
+            <div><label style={lbl}>Entry Time</label><input style={inp} type="time" name="entry_time" value={form.entry_time} onChange={handleChange}/></div>
+            <div><label style={lbl}>Exit Time</label><input style={inp} type="time" name="exit_time" value={form.exit_time} onChange={handleChange}/></div>
+            <div><label style={lbl}>Commission</label><input style={inp} type="number" step="0.01" name="commission" placeholder="0.00" value={form.commission} onChange={handleChange}/></div>
+
+            {/* Outcome + Strategy */}
+            <div>
+              <label style={lbl}>Outcome</label>
+              <select style={inp} name="outcome" value={form.outcome} onChange={handleChange}>
+                <option value="WIN">WIN</option><option value="LOSS">LOSS</option><option value="BREAKEVEN">BREAKEVEN</option>
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>Market Condition</label>
+              <select style={inp} name="market_condition" value={form.market_condition} onChange={handleChange}>
+                <option value="">Select...</option>
+                <option value="trending_up">Trending Up</option>
+                <option value="trending_down">Trending Down</option>
+                <option value="ranging">Ranging</option>
+                <option value="volatile">Volatile</option>
+                <option value="news">News Driven</option>
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>Strategy</label>
+              <select style={inp} name="strategy_id" value={form.strategy_id} onChange={handleChange}>
+                <option value="">No strategy</option>
+                {strategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+
+            {/* Full width fields */}
+            <div style={grp(3)}><label style={lbl}>Setup</label><input style={inp} type="text" name="setup" placeholder="VWAP reclaim, double bottom, breakout, trap..." value={form.setup} onChange={handleChange}/></div>
+            <div style={grp(3)}><label style={lbl}>Notes</label><textarea style={{...inp,height:72,resize:'vertical'}} name="notes" placeholder="What happened? What did you learn? How was your discipline?" value={form.notes} onChange={handleChange}/></div>
+          </div>
+
+          {error && <p style={{color:T.red,fontSize:13,marginTop:12}}>{error}</p>}
+
+          <div style={{display:'flex',gap:10,marginTop:20}}>
+            <button type="button" onClick={onClose} style={{flex:1,padding:'12px',background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:10,fontSize:15,cursor:'pointer'}}>Cancel</button>
+            <button type="submit" style={{flex:2,padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Trade'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── STRATEGY MODAL ────────────────────────────────────────────────────────────
+function StrategyModal({ T, session, onClose, onSaved, existing }) {
+  const [name, setName] = useState(existing?.name || '');
+  const [desc, setDesc] = useState(existing?.description || '');
+  const [rules, setRules] = useState(existing?.rules || ['']);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  function addRule() { setRules(r => [...r, '']); }
+  function removeRule(i) { setRules(r => r.filter((_,idx)=>idx!==i)); }
+  function updateRule(i, val) { setRules(r => r.map((v,idx)=>idx===i?val:v)); }
+
+  async function handleSave(e) {
+    e.preventDefault(); setSaving(true); setError('');
+    const sb = getSupabase();
+    const cleanRules = rules.filter(r => r.trim());
+    const payload = { user_id:session.user.id, name, description:desc, rules:cleanRules };
+    const { error:err } = existing
+      ? await sb.from('strategies').update(payload).eq('id', existing.id)
+      : await sb.from('strategies').insert(payload);
+    setSaving(false);
+    if (err) setError(err.message);
+    else { onSaved(); onClose(); }
+  }
+
+  const inp = { padding:'9px 12px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:8, color:T.text, fontSize:13, outline:'none', width:'100%', fontFamily:'inherit' };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:16 }} onClick={onClose}>
+      <div style={{ background:T.modalBg, border:`1px solid ${T.glassBorder}`, borderRadius:16, padding:28, width:'100%', maxWidth:520, maxHeight:'90vh', overflowY:'auto' }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h2 style={{ fontSize:18, fontWeight:700, color:T.text }}>{existing?'Edit':'Create'} Strategy</h2>
+          <button onClick={onClose} style={{ background:'transparent', border:'none', color:T.textMuted, fontSize:22, cursor:'pointer' }}>✕</button>
+        </div>
+        <form onSubmit={handleSave}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div>
+              <label style={{ display:'block', fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, marginBottom:5 }}>Strategy Name</label>
+              <input style={inp} type="text" placeholder="e.g. VWAP Reclaim, Double Bottom, Trap Setup" value={name} onChange={e=>setName(e.target.value)} required/>
+            </div>
+            <div>
+              <label style={{ display:'block', fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, marginBottom:5 }}>Description</label>
+              <textarea style={{...inp,height:60,resize:'vertical'}} placeholder="Briefly describe this strategy..." value={desc} onChange={e=>setDesc(e.target.value)}/>
+            </div>
+            <div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                <label style={{ fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>Your Rules (checklist)</label>
+                <button type="button" onClick={addRule} style={{ background:T.accent, color:'#000', border:'none', borderRadius:6, padding:'4px 12px', fontSize:12, fontWeight:700, cursor:'pointer' }}>+ Add Rule</button>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {rules.map((rule, i) => (
+                  <div key={i} style={{ display:'flex', gap:8 }}>
+                    <input style={{...inp,flex:1}} type="text" placeholder={`Rule ${i+1}: e.g. Price must reclaim VWAP first`} value={rule} onChange={e=>updateRule(i,e.target.value)}/>
+                    {rules.length > 1 && <button type="button" onClick={()=>removeRule(i)} style={{ background:T.redBg, border:'none', color:T.red, borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:14 }}>✕</button>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {error && <p style={{color:T.red,fontSize:13,marginTop:12}}>{error}</p>}
+          <div style={{display:'flex',gap:10,marginTop:20}}>
+            <button type="button" onClick={onClose} style={{flex:1,padding:'12px',background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:10,fontSize:15,cursor:'pointer'}}>Cancel</button>
+            <button type="submit" style={{flex:2,padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Strategy'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── TRADES TAB ────────────────────────────────────────────────────────────────
+function TradesTab({ trades, T, strategies, onAddTrade }) {
+  const [assetFilter, setAssetFilter] = useState('All');
+  const [datePreset, setDatePreset] = useState('all');
+  const [filterOutcome, setFilterOutcome] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
+  const filtered = useMemo(() => trades.filter(t => {
+    if (assetFilter !== 'All' && t.asset_type !== assetFilter.toLowerCase()) return false;
+    if (filterOutcome !== 'all' && t.outcome !== filterOutcome) return false;
+    const d2 = new Date(t.date+'T00:00:00');
+    if (datePreset==='custom') { if(customFrom&&d2<new Date(customFrom)) return false; if(customTo&&d2>new Date(customTo)) return false; }
+    else if (datePreset!=='all') { const r=getDateRange(datePreset); if(r&&(d2<r.from||d2>r.to)) return false; }
+    return true;
+  }), [trades, assetFilter, filterOutcome, datePreset, customFrom, customTo]);
+
+  const stratMap = useMemo(() => {
+    const m = {};
+    strategies.forEach(s => m[s.id] = s.name);
+    return m;
+  }, [strategies]);
+
+  const headers = useMemo(() => {
+    const base = ['Date','Ticker','Direction'];
+    if (assetFilter==='All'||assetFilter==='Options') return [...base,'Type','Strike','Expiry','DTE','Qty','Entry','Exit','P&L','Setup','Strategy','Result','Notes'];
+    if (assetFilter==='Stocks') return [...base,'Shares','Entry','Exit','P&L','Setup','Strategy','Result','Notes'];
+    if (assetFilter==='Forex') return [...base,'Lots','Entry','Exit','Pips','P&L','Setup','Strategy','Result','Notes'];
+    if (assetFilter==='Futures'||assetFilter==='Crypto') return [...base,'Qty','Entry','Exit','P&L','Setup','Strategy','Result','Notes'];
+    return base;
+  }, [assetFilter]);
+
+  return (
+    <div>
+      {/* Asset type tabs */}
+      <div style={{ display:'flex', gap:4, marginBottom:16, flexWrap:'wrap' }}>
+        {ASSET_TYPES.map(type => (
+          <button key={type} onClick={()=>setAssetFilter(type)} style={{ padding:'8px 18px', borderRadius:20, border:`1px solid ${assetFilter===type?T.accent:T.glassBorder}`, background:assetFilter===type?T.accent:T.glassBg, color:assetFilter===type?'#000':T.textMuted, fontSize:13, fontWeight:assetFilter===type?700:400, cursor:'pointer' }}>{type}</button>
+        ))}
+        <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
+          <button onClick={()=>setShowFilters(!showFilters)} style={{ padding:'8px 14px', borderRadius:8, border:`1px solid ${T.glassBorder}`, background:T.glassBg, color:T.textMuted, fontSize:13, cursor:'pointer' }}>⚙ Filters</button>
+          <button onClick={onAddTrade} style={{ padding:'8px 18px', borderRadius:8, border:'none', background:T.accent, color:'#000', fontSize:13, fontWeight:700, cursor:'pointer' }}>+ Add Trade</button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      {showFilters && (
+        <div style={{ background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:12, padding:16, marginBottom:16, display:'flex', gap:16, flexWrap:'wrap', alignItems:'center' }}>
+          <div>
+            <div style={{ fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6, fontWeight:600 }}>Date</div>
+            <div style={{ display:'flex', gap:4 }}>
+              {[['all','All'],['today','Today'],['this_week','Week'],['this_month','Month'],['last_month','Last Mo'],['custom','Custom']].map(([val,label])=>(
+                <button key={val} onClick={()=>setDatePreset(val)} style={{ padding:'4px 10px', borderRadius:16, border:`1px solid ${datePreset===val?T.accent:T.inputBorder}`, background:datePreset===val?T.accent:T.inputBg, color:datePreset===val?'#000':T.textMuted, fontSize:12, cursor:'pointer' }}>{label}</button>
+              ))}
+            </div>
+            {datePreset==='custom' && (
+              <div style={{ display:'flex', gap:8, marginTop:8, alignItems:'center' }}>
+                <input style={{ padding:'6px 10px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:6, color:T.text, fontSize:12 }} type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}/>
+                <span style={{ color:T.textMuted }}>→</span>
+                <input style={{ padding:'6px 10px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:6, color:T.text, fontSize:12 }} type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}/>
+              </div>
+            )}
+          </div>
+          <div>
+            <div style={{ fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6, fontWeight:600 }}>Outcome</div>
+            <div style={{ display:'flex', gap:4 }}>
+              {[['all','All'],['WIN','Win'],['LOSS','Loss'],['BREAKEVEN','B/E']].map(([val,label])=>(
+                <button key={val} onClick={()=>setFilterOutcome(val)} style={{ padding:'4px 10px', borderRadius:16, border:`1px solid ${filterOutcome===val?T.accent:T.inputBorder}`, background:filterOutcome===val?T.accent:T.inputBg, color:filterOutcome===val?'#000':T.textMuted, fontSize:12, cursor:'pointer' }}>{label}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'60px 0' }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
+          <p style={{ color:T.text, fontWeight:600, fontSize:16, marginBottom:6 }}>No trades found</p>
+          <p style={{ color:T.textMuted, fontSize:13 }}>Click "+ Add Trade" to log your first trade</p>
+        </div>
+      ) : (
+        <div style={{ overflowX:'auto', background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:14 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', minWidth:800 }}>
+            <thead>
+              <tr style={{ borderBottom:`1px solid ${T.glassBorder}` }}>
+                {headers.map(h => <th key={h} style={{ textAlign:'left', padding:'11px 14px', color:T.textMuted, fontSize:10, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.07em', whiteSpace:'nowrap' }}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(t => (
+                <tr key={t.id} className="trow" style={{ borderBottom:`1px solid ${T.tableBorder}` }}>
+                  <td style={{ padding:'12px 14px' }}>
+                    <div style={{ fontSize:13, color:T.text, fontWeight:500 }}>{t.date}</div>
+                    <div style={{ fontSize:10, color:T.textMuted }}>{DAYS[new Date(t.date+'T00:00:00').getDay()]}</div>
+                  </td>
+                  <td style={{ padding:'12px 14px', fontSize:14, fontWeight:700, color:T.accent }}>{t.ticker}</td>
+                  <td style={{ padding:'12px 14px' }}>
+                    <span style={{ padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:700, background:t.direction==='LONG'?T.greenBg:T.redBg, color:t.direction==='LONG'?T.green:T.red }}>{t.direction||'—'}</span>
+                  </td>
+                  {(assetFilter==='All'||assetFilter==='Options') && <>
+                    <td style={{ padding:'12px 14px' }}>{t.option_type ? <span style={{ padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:700, background:t.option_type==='CALL'?T.greenBg:T.redBg, color:t.option_type==='CALL'?T.green:T.red }}>{t.option_type}</span> : <span style={{color:T.textFaint}}>—</span>}</td>
+                    <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.strike?`$${t.strike}`:<span style={{color:T.textFaint}}>—</span>}</td>
+                    <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.expiry||<span style={{color:T.textFaint}}>—</span>}</td>
+                    <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.dte!=null?`${t.dte}d`:<span style={{color:T.textFaint}}>—</span>}</td>
+                    <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.contracts||<span style={{color:T.textFaint}}>—</span>}</td>
+                  </>}
+                  {assetFilter==='Stocks' && <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.shares||<span style={{color:T.textFaint}}>—</span>}</td>}
+                  {assetFilter==='Forex' && <>
+                    <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.lots||<span style={{color:T.textFaint}}>—</span>}</td>
+                  </>}
+                  {(assetFilter==='Futures'||assetFilter==='Crypto') && <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.contracts||t.shares||<span style={{color:T.textFaint}}>—</span>}</td>}
+                  <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.entry_price?`$${t.entry_price}`:<span style={{color:T.textFaint}}>—</span>}</td>
+                  <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.exit_price?`$${t.exit_price}`:<span style={{color:T.textFaint}}>—</span>}</td>
+                  {assetFilter==='Forex' && <td style={{ padding:'12px 14px', fontSize:13, color:T.text }}>{t.pips||<span style={{color:T.textFaint}}>—</span>}</td>}
+                  <td style={{ padding:'12px 14px', fontSize:14, fontWeight:700, color:parseFloat(t.pnl)>=0?T.green:T.red, fontVariantNumeric:'tabular-nums' }}>{parseFloat(t.pnl)>=0?'+':''}${parseFloat(t.pnl||0).toFixed(2)}</td>
+                  <td style={{ padding:'12px 14px', fontSize:12, color:T.textMuted }}>{t.setup||<span style={{color:T.textFaint}}>—</span>}</td>
+                  <td style={{ padding:'12px 14px', fontSize:12, color:T.accent }}>{t.strategy_id?stratMap[t.strategy_id]||'—':<span style={{color:T.textFaint}}>—</span>}</td>
+                  <td style={{ padding:'12px 14px' }}><span style={{ padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:700, background:t.outcome==='WIN'?T.greenBg:t.outcome==='LOSS'?T.redBg:'rgba(107,114,128,0.12)', color:t.outcome==='WIN'?T.green:t.outcome==='LOSS'?T.red:T.textMuted }}>{t.outcome}</span></td>
+                  <td style={{ padding:'12px 14px', fontSize:12, color:T.textMuted, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.notes||<span style={{color:T.textFaint}}>—</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── P&L TAB ───────────────────────────────────────────────────────────────────
+function PnlTab({ trades, T }) {
+  // Equity curve
+  const equityCurve = useMemo(() => {
+    let cum = 0;
+    return [...trades].reverse().map(t => { cum += parseFloat(t.pnl)||0; return cum; });
+  }, [trades]);
+
+  // By day of week
+  const byDay = useMemo(() => {
+    const m = {Monday:0,Tuesday:0,Wednesday:0,Thursday:0,Friday:0};
+    trades.forEach(t => {
+      const day = DAYS[new Date(t.date+'T00:00:00').getDay()];
+      if (m[day] !== undefined) m[day] += parseFloat(t.pnl)||0;
+    });
+    return Object.entries(m).map(([label,value]) => ({label:label.slice(0,3),value:parseFloat(value.toFixed(2))}));
+  }, [trades]);
+
+  // By ticker
+  const byTicker = useMemo(() => {
+    const m = {};
+    trades.forEach(t => { m[t.ticker] = (m[t.ticker]||0) + (parseFloat(t.pnl)||0); });
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([label,value])=>({label,value:parseFloat(value.toFixed(2))}));
+  }, [trades]);
+
+  // By hour
+  const byHour = useMemo(() => {
+    const m = {};
+    trades.filter(t=>t.entry_time).forEach(t => {
+      const h = t.entry_time?.split(':')[0];
+      if (h) m[h] = (m[h]||0) + (parseFloat(t.pnl)||0);
+    });
+    return Object.entries(m).sort((a,b)=>a[0]-b[0]).map(([h,value])=>({label:`${h}:00`,value:parseFloat(value.toFixed(2))}));
+  }, [trades]);
+
+  // Monthly
+  const byMonth = useMemo(() => {
+    const m = {};
+    trades.forEach(t => {
+      const key = t.date?.slice(0,7);
+      if (key) m[key] = (m[key]||0) + (parseFloat(t.pnl)||0);
+    });
+    return Object.entries(m).sort().slice(-6).map(([key,value])=>({label:key.slice(5),value:parseFloat(value.toFixed(2))}));
+  }, [trades]);
+
+  const wins = trades.filter(t=>t.outcome==='WIN').length;
+  const losses = trades.filter(t=>t.outcome==='LOSS').length;
+  const breakeven = trades.filter(t=>t.outcome==='BREAKEVEN').length;
+  const totalPnl = trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const bestTrade = trades.reduce((best,t)=>parseFloat(t.pnl||0)>parseFloat(best?.pnl||0)?t:best, null);
+  const worstTrade = trades.reduce((worst,t)=>parseFloat(t.pnl||0)<parseFloat(worst?.pnl||0)?t:worst, null);
+
+  const card = { background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:14, padding:20 };
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+
+      {/* Summary cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12 }}>
+        {[
+          { label:'Net P&L', value:`${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}`, color:totalPnl>=0?T.green:T.red },
+          { label:'Best Trade', value:`+$${parseFloat(bestTrade?.pnl||0).toFixed(2)}`, sub:bestTrade?.ticker, color:T.green },
+          { label:'Worst Trade', value:`-$${Math.abs(parseFloat(worstTrade?.pnl||0)).toFixed(2)}`, sub:worstTrade?.ticker, color:T.red },
+          { label:'Profit Factor', value: losses>0?((wins/trades.length)/(losses/trades.length)).toFixed(2):'∞', color:T.accent },
+          { label:'Avg Trade', value:`${totalPnl>=0?'+':''}$${(totalPnl/trades.length||0).toFixed(2)}`, color:T.text },
+        ].map(s => (
+          <div key={s.label} style={card}>
+            <div style={{ fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:6 }}>{s.label}</div>
+            <div style={{ fontSize:22, fontWeight:800, color:s.color, fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
+            {s.sub && <div style={{ fontSize:12, color:T.accent, marginTop:2 }}>{s.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* Equity curve */}
+      <div style={card}>
+        <div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:12 }}>Equity Curve</div>
+        <MiniLineChart data={equityCurve} color={totalPnl>=0?T.green:T.red} height={80}/>
+        <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
+          <span style={{ fontSize:11, color:T.textMuted }}>Start</span>
+          <span style={{ fontSize:11, color:T.textMuted }}>Today</span>
+        </div>
+      </div>
+
+      {/* P&L Calendar */}
+      <div style={card}>
+        <div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:16 }}>P&L Calendar</div>
+        <PnlCalendar trades={trades} T={T}/>
+      </div>
+
+      {/* Charts row */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+        <div style={card}>
+          <div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:12 }}>Win/Loss Breakdown</div>
+          <DonutChart wins={wins} losses={losses} breakeven={breakeven} T={T}/>
+        </div>
+        <div style={card}>
+          <div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:4 }}>P&L by Day of Week</div>
+          <BarChart data={byDay} T={T}/>
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+        <div style={card}>
+          <div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:4 }}>P&L by Ticker</div>
+          <BarChart data={byTicker} T={T}/>
+        </div>
+        <div style={card}>
+          <div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:4 }}>P&L by Month</div>
+          <BarChart data={byMonth} T={T}/>
+        </div>
+      </div>
+
+      {byHour.length > 0 && (
+        <div style={card}>
+          <div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:4 }}>P&L by Time of Day</div>
+          <BarChart data={byHour} T={T}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── STRATEGIES TAB ────────────────────────────────────────────────────────────
+function StrategiesTab({ trades, strategies, T, session, onRefresh }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+
+  async function deleteStrategy(id) {
+    if (!confirm('Delete this strategy?')) return;
+    const sb = getSupabase();
+    await sb.from('strategies').delete().eq('id', id);
+    onRefresh();
+  }
+
+  const stratStats = useMemo(() => {
+    return strategies.map(s => {
+      const st = trades.filter(t => t.strategy_id === s.id);
+      const wins = st.filter(t=>t.outcome==='WIN').length;
+      const pnl = st.reduce((sum,t)=>sum+(parseFloat(t.pnl)||0),0);
+      const winRate = st.length ? Math.round(wins/st.length*100) : 0;
+      return { ...s, tradeCount:st.length, wins, pnl, winRate };
+    });
+  }, [strategies, trades]);
+
+  // Rules followed breakdown
+  const rulesBreakdown = useMemo(() => {
+    const followed = trades.filter(t=>t.rules_followed==='all');
+    const some = trades.filter(t=>t.rules_followed==='some');
+    const none = trades.filter(t=>!t.rules_followed||t.rules_followed==='none');
+    const pnl = arr => arr.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+    const wr = arr => arr.length ? Math.round(arr.filter(t=>t.outcome==='WIN').length/arr.length*100) : 0;
+    return [
+      { label:'✅ All Rules Followed', trades:followed.length, winRate:wr(followed), pnl:pnl(followed).toFixed(2), color:T.green },
+      { label:'⚠️ Some Rules Followed', trades:some.length, winRate:wr(some), pnl:pnl(some).toFixed(2), color:'#f59e0b' },
+      { label:'❌ Rules Ignored', trades:none.length, winRate:wr(none), pnl:pnl(none).toFixed(2), color:T.red },
+    ];
+  }, [trades, T]);
+
+  const card = { background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:14, padding:20 };
+
+  return (
+    <div>
+      {showModal && <StrategyModal T={T} session={session} existing={editing} onClose={()=>{setShowModal(false);setEditing(null);}} onSaved={onRefresh}/>}
+
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+        <h3 style={{ fontSize:16, fontWeight:600, color:T.text }}>My Strategies</h3>
+        <button onClick={()=>setShowModal(true)} style={{ padding:'9px 18px', borderRadius:8, border:'none', background:T.accent, color:'#000', fontSize:13, fontWeight:700, cursor:'pointer' }}>+ New Strategy</button>
+      </div>
+
+      {/* Rules P&L breakdown — the killer table */}
+      <div style={{...card, marginBottom:20}}>
+        <div style={{ fontSize:13, fontWeight:700, color:T.text, marginBottom:4 }}>Rules Followed vs P&L</div>
+        <div style={{ fontSize:12, color:T.textMuted, marginBottom:16 }}>The data doesn't lie — see what following your rules is worth in dollars.</div>
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {rulesBreakdown.map(row => (
+            <div key={row.label} style={{ background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, padding:'14px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
+              <div>
+                <div style={{ fontSize:14, fontWeight:600, color:T.text, marginBottom:4 }}>{row.label}</div>
+                <div style={{ fontSize:12, color:T.textMuted }}>{row.trades} trades · {row.winRate}% win rate</div>
+              </div>
+              <div style={{ fontSize:22, fontWeight:800, color:row.color, fontVariantNumeric:'tabular-nums' }}>
+                {parseFloat(row.pnl)>=0?'+':''}${Math.abs(parseFloat(row.pnl)).toFixed(2)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Strategy cards */}
+      {strategies.length === 0 ? (
+        <div style={{...card, textAlign:'center', padding:'48px 24px'}}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
+          <p style={{ color:T.text, fontWeight:600, fontSize:16, marginBottom:8 }}>No strategies yet</p>
+          <p style={{ color:T.textMuted, fontSize:13, marginBottom:20 }}>Create your first strategy and define your trading rules. Then tag your trades to it and see exactly how discipline affects your P&L.</p>
+          <button onClick={()=>setShowModal(true)} style={{ padding:'10px 24px', borderRadius:8, border:'none', background:T.accent, color:'#000', fontSize:14, fontWeight:700, cursor:'pointer' }}>Create First Strategy</button>
+        </div>
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
+          {stratStats.map(s => (
+            <div key={s.id} style={card}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                <div>
+                  <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:4 }}>{s.name}</div>
+                  {s.description && <div style={{ fontSize:12, color:T.textMuted, lineHeight:1.5 }}>{s.description}</div>}
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <button onClick={()=>{setEditing(s);setShowModal(true);}} style={{ background:T.glassBg, border:`1px solid ${T.glassBorder}`, borderRadius:6, padding:'4px 8px', color:T.textMuted, cursor:'pointer', fontSize:12 }}>Edit</button>
+                  <button onClick={()=>deleteStrategy(s.id)} style={{ background:T.redBg, border:'none', borderRadius:6, padding:'4px 8px', color:T.red, cursor:'pointer', fontSize:12 }}>Delete</button>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:12 }}>
+                {[{label:'Trades',value:s.tradeCount},{label:'Win Rate',value:`${s.winRate}%`},{label:'P&L',value:`${s.pnl>=0?'+':''}$${s.pnl.toFixed(2)}`,color:s.pnl>=0?T.green:T.red}].map(m=>(
+                  <div key={m.label} style={{ background:T.inputBg, borderRadius:8, padding:'10px 8px', textAlign:'center' }}>
+                    <div style={{ fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>{m.label}</div>
+                    <div style={{ fontSize:16, fontWeight:700, color:m.color||T.text }}>{m.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Rules */}
+              {s.rules && s.rules.length > 0 && (
+                <div>
+                  <div style={{ fontSize:10, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8, fontWeight:600 }}>Rules</div>
+                  {s.rules.map((rule, i) => (
+                    <div key={i} style={{ display:'flex', gap:8, marginBottom:6, fontSize:12, color:T.textMuted }}>
+                      <span style={{ color:T.accent, flexShrink:0, fontWeight:700 }}>{i+1}.</span>
+                      <span>{rule}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -76,130 +825,70 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
 
   const features = [
     { icon:'📸', title:'Chart Screenshot Upload', desc:'Attach your chart to every trade. No more going back to TradingView a month later.' },
-    { icon:'📋', title:'Strategy Rule Tracking', desc:'Define your own rules. See exactly how your P&L changes when you follow them vs when you break them.' },
+    { icon:'📋', title:'Strategy Rule Tracking', desc:'Define your own rules. See P&L when you follow them vs when you break them.' },
     { icon:'📊', title:'Deep Analytics', desc:'Win rate by day, time, ticker, setup. Understand your edge with real data.' },
-    { icon:'🤖', title:'AI Trade Coaching', desc:'AI that reads your chart, identifies your setup, and reviews your session. Coming soon.' },
-    { icon:'🔄', title:'IBKR Auto-Sync', desc:'Connect once. Every fill logged automatically in real time. No manual entry needed.' },
-    { icon:'📰', title:'News Feed', desc:'See what catalyst was in play when you took the trade. Tag news-driven vs technical setups.' },
-    { icon:'🏆', title:'Monthly Challenge', desc:'Compete with other traders. Best win rate wins a free month. Community-driven accountability.' },
-    { icon:'🎓', title:'Learning Hub', desc:'Beginner to advanced. Stocks, options, futures, forex. Structured courses inside your journal.' },
-  ];
-
-  const stats = [
-    { value:'∞', label:'Trades Logged' },
-    { value:'0DTE', label:'Options Supported' },
-    { value:'500+', label:'Brokers (coming)' },
-    { value:'$0', label:'To Start' },
+    { icon:'🤖', title:'AI Trade Coaching', desc:'AI reads your chart, identifies your setup, and reviews your session. Coming soon.' },
+    { icon:'🔄', title:'IBKR Auto-Sync', desc:'Connect once. Every fill logged automatically. No manual entry needed.' },
+    { icon:'📰', title:'News Feed', desc:'See what catalyst was in play. Tag news-driven vs technical setups.' },
+    { icon:'🏆', title:'Monthly Challenge', desc:'Compete with other traders. Best win rate wins a free month.' },
+    { icon:'🎓', title:'Learning Hub', desc:'Beginner to advanced. Stocks, options, futures, forex. Coming soon.' },
   ];
 
   return (
-    <div style={{ background: T.pageBg, color: T.text, fontFamily:"'IBM Plex Sans',system-ui,sans-serif", minHeight:'100vh', overflowX:'hidden' }}>
-
-      {/* Fixed Nav */}
-      <nav style={{ position:'fixed', top:0, left:0, right:0, zIndex:100, background: scrolled ? T.headerBg : 'transparent', backdropFilter: scrolled ? 'blur(24px)' : 'none', borderBottom: scrolled ? `1px solid ${T.glassBorder}` : 'none', transition:'all 0.3s', padding:'0 32px', height:64, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <Logo light={!d} />
+    <div style={{ background:T.pageBg, color:T.text, fontFamily:"'IBM Plex Sans',system-ui,sans-serif", minHeight:'100vh', overflowX:'hidden' }}>
+      <nav style={{ position:'fixed', top:0, left:0, right:0, zIndex:100, background:scrolled?T.headerBg:'transparent', backdropFilter:scrolled?'blur(24px)':'none', borderBottom:scrolled?`1px solid ${T.glassBorder}`:'none', transition:'all 0.3s', padding:'0 32px', height:64, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <Logo light={!d}/>
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>
           <button onClick={onToggleDark} style={{ background:T.glassBg, border:`1px solid ${T.glassBorder}`, borderRadius:8, padding:'7px 10px', cursor:'pointer', fontSize:14, color:T.textMuted, backdropFilter:'blur(10px)' }}>{d?'☀':'🌙'}</button>
-          <button onClick={onLogin} style={{ background:'transparent', color:T.text, border:`1px solid ${T.glassBorder}`, borderRadius:10, padding:'9px 20px', fontSize:14, fontWeight:500, cursor:'pointer', backdropFilter:'blur(10px)' }}>Log In</button>
+          <button onClick={onLogin} style={{ background:'transparent', color:T.text, border:`1px solid ${T.glassBorder}`, borderRadius:10, padding:'9px 20px', fontSize:14, fontWeight:500, cursor:'pointer' }}>Log In</button>
           <button onClick={onSignup} style={{ background:T.accent, color:'#000', border:'none', borderRadius:10, padding:'9px 20px', fontSize:14, fontWeight:700, cursor:'pointer' }}>Get Started Free</button>
         </div>
       </nav>
 
-      {/* Hero */}
       <section style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:'120px 24px 80px', position:'relative', overflow:'hidden' }}>
-        {/* Ambient orbs */}
         <div style={{ position:'absolute', width:700, height:700, borderRadius:'50%', background:T.orb1, filter:'blur(80px)', top:'-10%', left:'50%', transform:'translateX(-50%)', pointerEvents:'none' }}/>
         <div style={{ position:'absolute', width:500, height:500, borderRadius:'50%', background:T.orb2, filter:'blur(80px)', bottom:'5%', right:'-10%', pointerEvents:'none' }}/>
-        <div style={{ position:'absolute', width:400, height:400, borderRadius:'50%', background: d?'rgba(99,102,241,0.06)':'rgba(99,102,241,0.08)', filter:'blur(80px)', bottom:'15%', left:'-5%', pointerEvents:'none' }}/>
+        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', opacity:d?0.03:0.04, pointerEvents:'none', userSelect:'none', fontSize:280, fontWeight:900, color:d?'#fff':'#000', letterSpacing:'-10px', fontFamily:"'IBM Plex Sans',system-ui,sans-serif" }}>J</div>
 
-        {/* Giant watermark logo behind */}
-        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', opacity: d?0.03:0.04, pointerEvents:'none', userSelect:'none' }}>
-          <Logo light={!d} size="xl"/>
-          <div style={{ fontSize: 220, fontWeight:900, color: d?'#fff':'#000', letterSpacing:'-10px', lineHeight:1, marginTop:-20, fontFamily:"'IBM Plex Sans',system-ui,sans-serif" }}>J</div>
-        </div>
-
-        {/* Badge */}
-        <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:30, padding:'7px 18px', fontSize:13, color:T.accent, fontWeight:600, marginBottom:32, animation:'fadeIn 0.5s ease' }}>
+        <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:30, padding:'7px 18px', fontSize:13, color:T.accent, fontWeight:600, marginBottom:32 }}>
           <span style={{ width:6, height:6, borderRadius:'50%', background:T.accent, display:'inline-block', animation:'pulse 2s infinite' }}/>
           Now live — built by a real trader
         </div>
 
-        {/* Big Logo */}
-        <div style={{ marginBottom:24, animation:'fadeIn 0.6s ease' }}>
-          <Logo light={!d} size="lg"/>
-        </div>
+        <div style={{ marginBottom:24 }}><Logo light={!d} size="lg"/></div>
 
-        {/* Headline */}
-        <h1 style={{ fontSize:'clamp(36px,6vw,72px)', fontWeight:900, letterSpacing:'-2px', lineHeight:1.1, marginBottom:20, maxWidth:800, animation:'fadeIn 0.7s ease', color:T.text }}>
-          Your Financial Journey,<br/>
-          <span style={{ color:T.accent }}>Tracked & Analyzed.</span>
+        <h1 style={{ fontSize:'clamp(36px,6vw,72px)', fontWeight:900, letterSpacing:'-2px', lineHeight:1.1, marginBottom:20, maxWidth:800, color:T.text }}>
+          Your Financial Journey,<br/><span style={{ color:T.accent }}>Tracked & Analyzed.</span>
         </h1>
-
-        <p style={{ fontSize:'clamp(15px,2vw,20px)', color:T.textMuted, maxWidth:580, lineHeight:1.7, marginBottom:40, animation:'fadeIn 0.8s ease' }}>
-          The only trading journal that tracks your trades, analyzes your patterns, holds you accountable to your own rules, and teaches you at the same time.
+        <p style={{ fontSize:'clamp(15px,2vw,20px)', color:T.textMuted, maxWidth:580, lineHeight:1.7, marginBottom:40 }}>
+          The only trading journal that tracks ALL your trades — stocks, options, forex, futures, crypto — analyzes your patterns, and holds you accountable to your own rules.
         </p>
-
-        {/* CTA buttons */}
-        <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginBottom:60, animation:'fadeIn 0.9s ease' }}>
-          <button onClick={onSignup} style={{ background:T.accent, color:'#000', border:'none', borderRadius:14, padding:'16px 36px', fontSize:17, fontWeight:800, cursor:'pointer', boxShadow:`0 0 40px ${T.accent}44` }}>
-            Start Free — No Credit Card
-          </button>
-          <button onClick={onLogin} style={{ background:T.glassBg, backdropFilter:'blur(20px)', color:T.text, border:`1px solid ${T.glassBorder}`, borderRadius:14, padding:'16px 32px', fontSize:17, fontWeight:600, cursor:'pointer' }}>
-            Sign In →
-          </button>
+        <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginBottom:60 }}>
+          <button onClick={onSignup} style={{ background:T.accent, color:'#000', border:'none', borderRadius:14, padding:'16px 36px', fontSize:17, fontWeight:800, cursor:'pointer', boxShadow:`0 0 40px ${T.accent}44` }}>Start Free — No Credit Card</button>
+          <button onClick={onLogin} style={{ background:T.glassBg, backdropFilter:'blur(20px)', color:T.text, border:`1px solid ${T.glassBorder}`, borderRadius:14, padding:'16px 32px', fontSize:17, fontWeight:600, cursor:'pointer' }}>Sign In →</button>
         </div>
-
-        {/* Stats row */}
-        <div style={{ display:'flex', gap:0, background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:20, overflow:'hidden', animation:'fadeIn 1s ease' }}>
-          {stats.map((s, i) => (
-            <div key={s.label} style={{ padding:'20px 36px', borderRight: i<stats.length-1 ? `1px solid ${T.glassBorder}` : 'none', textAlign:'center' }}>
-              <div style={{ fontSize:28, fontWeight:800, color:T.accent, letterSpacing:'-1px' }}>{s.value}</div>
-              <div style={{ fontSize:12, color:T.textMuted, marginTop:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>{s.label}</div>
+        <div style={{ display:'flex', gap:0, background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:20, overflow:'hidden', flexWrap:'wrap' }}>
+          {[{value:'All Markets',label:'Stocks · Options · Forex · Futures · Crypto'},{value:'Rules Tracking',label:'Follow your strategy. See the P&L difference.'},{value:'AI Coaching',label:'Coming soon — your personal trading coach'},{value:'$0',label:'To get started'}].map((s,i,arr)=>(
+            <div key={s.value} style={{ padding:'18px 28px', borderRight:i<arr.length-1?`1px solid ${T.glassBorder}`:'none', textAlign:'center', minWidth:160 }}>
+              <div style={{ fontSize:18, fontWeight:800, color:T.accent }}>{s.value}</div>
+              <div style={{ fontSize:11, color:T.textMuted, marginTop:4 }}>{s.label}</div>
             </div>
           ))}
         </div>
-
-        {/* Scroll indicator */}
-        <div style={{ position:'absolute', bottom:32, left:'50%', transform:'translateX(-50%)', display:'flex', flexDirection:'column', alignItems:'center', gap:6, animation:'bounce 2s infinite', opacity:0.4 }}>
-          <div style={{ fontSize:12, color:T.textMuted, letterSpacing:'0.1em', textTransform:'uppercase' }}>Scroll</div>
+        <div style={{ position:'absolute', bottom:32, left:'50%', transform:'translateX(-50%)', opacity:0.4, animation:'bounce 2s infinite', textAlign:'center' }}>
+          <div style={{ fontSize:11, color:T.textMuted, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>Scroll</div>
           <div style={{ fontSize:18, color:T.textMuted }}>↓</div>
         </div>
       </section>
 
-      {/* Problem / Solution */}
-      <section style={{ padding:'80px 24px', maxWidth:1000, margin:'0 auto', textAlign:'center' }}>
-        <div style={{ display:'inline-block', background:T.accentDim, border:`1px solid ${T.accent}33`, borderRadius:30, padding:'5px 16px', fontSize:12, color:T.accent, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:20 }}>The Problem</div>
-        <h2 style={{ fontSize:'clamp(28px,4vw,48px)', fontWeight:800, letterSpacing:'-1px', marginBottom:20, color:T.text }}>Most traders lose not from<br/>bad strategy — but bad discipline.</h2>
-        <p style={{ color:T.textMuted, fontSize:16, lineHeight:1.8, maxWidth:660, margin:'0 auto 56px' }}>
-          You break your own rules. You take revenge trades. You exit early. And a month later, you can't even remember what happened because you never wrote it down. Journifi fixes that.
-        </p>
-
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
-          {[
-            { before:'❌ "I think I had a good week"', after:'✅ See exact P&L by day, setup, ticker' },
-            { before:'❌ "I broke my rules again"', after:'✅ See P&L when rules followed vs ignored' },
-            { before:'❌ "Why did I take that trade?"', after:'✅ Chart screenshot attached, always' },
-          ].map((item, i) => (
-            <div key={i} style={{ background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:16, padding:'24px 20px', textAlign:'left' }}>
-              <div style={{ fontSize:13, color:T.red, marginBottom:12, lineHeight:1.5 }}>{item.before}</div>
-              <div style={{ width:'100%', height:1, background:T.glassBorder, marginBottom:12 }}/>
-              <div style={{ fontSize:13, color:T.green, lineHeight:1.5 }}>{item.after}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Features Grid */}
       <section style={{ padding:'80px 24px', maxWidth:1100, margin:'0 auto' }}>
-        <div style={{ textAlign:'center', marginBottom:56 }}>
+        <div style={{ textAlign:'center', marginBottom:48 }}>
           <div style={{ display:'inline-block', background:T.accentDim, border:`1px solid ${T.accent}33`, borderRadius:30, padding:'5px 16px', fontSize:12, color:T.accent, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:20 }}>Everything You Need</div>
-          <h2 style={{ fontSize:'clamp(28px,4vw,48px)', fontWeight:800, letterSpacing:'-1px', color:T.text }}>One platform.<br/>Every trading tool you need.</h2>
+          <h2 style={{ fontSize:'clamp(28px,4vw,48px)', fontWeight:800, letterSpacing:'-1px', color:T.text }}>One platform. Every trading tool.</h2>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:16 }}>
-          {features.map((f, i) => (
-            <div key={i} style={{ background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:16, padding:'24px 20px', transition:'transform 0.2s', cursor:'default' }}
-              onMouseEnter={e => e.currentTarget.style.transform='translateY(-4px)'}
-              onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}>
+          {features.map((f,i) => (
+            <div key={i} style={{ background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:16, padding:'24px 20px', transition:'transform 0.2s' }} onMouseEnter={e=>e.currentTarget.style.transform='translateY(-4px)'} onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}>
               <div style={{ fontSize:28, marginBottom:12 }}>{f.icon}</div>
               <h3 style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>{f.title}</h3>
               <p style={{ fontSize:13, color:T.textMuted, lineHeight:1.6 }}>{f.desc}</p>
@@ -208,26 +897,18 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
         </div>
       </section>
 
-      {/* Rule Tracking Feature Highlight */}
       <section style={{ padding:'80px 24px', maxWidth:1000, margin:'0 auto' }}>
-        <div style={{ background: `linear-gradient(135deg, ${T.accent}10, ${T.accent}05)`, border:`1px solid ${T.accent}30`, borderRadius:24, padding:'48px 40px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:40, alignItems:'center' }}>
+        <div style={{ background:`linear-gradient(135deg,${T.accent}10,${T.accent}05)`, border:`1px solid ${T.accent}30`, borderRadius:24, padding:'48px 40px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:40, alignItems:'center' }}>
           <div>
             <div style={{ display:'inline-block', background:T.accentDim, border:`1px solid ${T.accent}33`, borderRadius:30, padding:'5px 16px', fontSize:12, color:T.accent, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:20 }}>Signature Feature</div>
-            <h2 style={{ fontSize:'clamp(24px,3vw,36px)', fontWeight:800, letterSpacing:'-1px', color:T.text, marginBottom:16, lineHeight:1.2 }}>See exactly what following your rules is worth.</h2>
-            <p style={{ color:T.textMuted, fontSize:15, lineHeight:1.8, marginBottom:24 }}>Create your own strategy. Define your own rules. Journifi tracks whether you followed them — and shows you the P&L difference in dollars.</p>
+            <h2 style={{ fontSize:'clamp(24px,3vw,36px)', fontWeight:800, letterSpacing:'-1px', color:T.text, marginBottom:16, lineHeight:1.2 }}>See what following your rules is worth — in dollars.</h2>
+            <p style={{ color:T.textMuted, fontSize:15, lineHeight:1.8, marginBottom:24 }}>Create your strategy. Define your rules. Journifi tracks whether you followed them and shows you the P&L difference.</p>
             <button onClick={onSignup} style={{ background:T.accent, color:'#000', border:'none', borderRadius:12, padding:'13px 28px', fontSize:15, fontWeight:700, cursor:'pointer' }}>Try It Free →</button>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-            {[
-              { label:'✅ All rules followed', trades:18, winRate:'78%', pnl:'+$1,840', color:T.green },
-              { label:'⚠️ Some rules followed', trades:9, winRate:'44%', pnl:'-$210', color:'#f59e0b' },
-              { label:'❌ Rules ignored', trades:6, winRate:'17%', pnl:'-$890', color:T.red },
-            ].map(row => (
+            {[{label:'✅ All rules followed',trades:18,winRate:'78%',pnl:'+$1,840',color:T.green},{label:'⚠️ Some rules followed',trades:9,winRate:'44%',pnl:'-$210',color:'#f59e0b'},{label:'❌ Rules ignored',trades:6,winRate:'17%',pnl:'-$890',color:T.red}].map(row=>(
               <div key={row.label} style={{ background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:12, padding:'16px 18px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:4 }}>{row.label}</div>
-                  <div style={{ fontSize:11, color:T.textMuted }}>{row.trades} trades · {row.winRate} win rate</div>
-                </div>
+                <div><div style={{ fontSize:13, fontWeight:600, color:T.text, marginBottom:4 }}>{row.label}</div><div style={{ fontSize:11, color:T.textMuted }}>{row.trades} trades · {row.winRate} win rate</div></div>
                 <div style={{ fontSize:18, fontWeight:800, color:row.color }}>{row.pnl}</div>
               </div>
             ))}
@@ -235,61 +916,42 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
         </div>
       </section>
 
-      {/* Pricing Preview */}
       <section style={{ padding:'80px 24px', maxWidth:1000, margin:'0 auto', textAlign:'center' }}>
-        <div style={{ display:'inline-block', background:T.accentDim, border:`1px solid ${T.accent}33`, borderRadius:30, padding:'5px 16px', fontSize:12, color:T.accent, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:20 }}>Simple Pricing</div>
         <h2 style={{ fontSize:'clamp(28px,4vw,48px)', fontWeight:800, letterSpacing:'-1px', marginBottom:12, color:T.text }}>Start free. Upgrade when ready.</h2>
         <p style={{ color:T.textMuted, fontSize:16, marginBottom:48 }}>No credit card required. Cancel anytime.</p>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
-          {[
-            { name:'Free', price:'$0', color:'#6b7280', features:['10 trades','Manual entry','Basic stats'] },
-            { name:'Pro', price:'$29.99', color:T.accent, popular:true, features:['Unlimited trades','IBKR sync','All analytics','Learning Hub','Strategy tracking'] },
-            { name:'Elite', price:'$49.99', color:'#a78bfa', features:['Everything in Pro','AI chart analysis','AI coaching','Pre-market briefing'] },
-          ].map(plan => (
+          {[{name:'Free',price:'$0',color:'#6b7280',features:['10 trades','Manual entry','Basic stats']},{name:'Pro',price:'$29.99',color:T.accent,popular:true,features:['Unlimited trades','All asset types','IBKR sync','Analytics','Strategy tracking','Learning Hub']},{name:'Elite',price:'$49.99',color:'#a78bfa',features:['Everything in Pro','AI chart analysis','AI coaching','Pre-market briefing']}].map(plan=>(
             <div key={plan.name} style={{ background:plan.popular?`linear-gradient(135deg,${T.accent}12,${T.accent}06)`:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`, borderRadius:20, padding:'28px 24px', position:'relative' }}>
-              {plan.popular && <div style={{ position:'absolute', top:-12, left:'50%', transform:'translateX(-50%)', background:T.accent, color:'#000', fontSize:11, fontWeight:700, padding:'4px 14px', borderRadius:20, whiteSpace:'nowrap' }}>MOST POPULAR</div>}
+              {plan.popular&&<div style={{ position:'absolute', top:-12, left:'50%', transform:'translateX(-50%)', background:T.accent, color:'#000', fontSize:11, fontWeight:700, padding:'4px 14px', borderRadius:20, whiteSpace:'nowrap' }}>MOST POPULAR</div>}
               <div style={{ fontSize:12, fontWeight:700, color:plan.color, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{plan.name}</div>
               <div style={{ fontSize:36, fontWeight:800, color:T.text, letterSpacing:'-1px', marginBottom:20 }}>{plan.price}<span style={{ fontSize:14, fontWeight:400, color:T.textMuted }}>/mo</span></div>
-              {plan.features.map(f => (
-                <div key={f} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                  <span style={{ color:T.green, fontSize:14 }}>✓</span>
-                  <span style={{ color:T.text, fontSize:13 }}>{f}</span>
-                </div>
-              ))}
+              {plan.features.map(f=>(<div key={f} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}><span style={{ color:T.green }}>✓</span><span style={{ color:T.text, fontSize:13 }}>{f}</span></div>))}
               <button onClick={onSignup} style={{ width:'100%', padding:'12px', background:plan.popular?T.accent:'transparent', color:plan.popular?'#000':T.text, border:`1px solid ${plan.popular?T.accent:T.glassBorder}`, borderRadius:10, fontSize:14, fontWeight:700, cursor:'pointer', marginTop:20 }}>Get Started</button>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Final CTA */}
       <section style={{ padding:'100px 24px', textAlign:'center', position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', width:600, height:600, borderRadius:'50%', background:T.orb1, filter:'blur(80px)', top:'50%', left:'50%', transform:'translate(-50%,-50%)', pointerEvents:'none' }}/>
         <div style={{ position:'relative', zIndex:1 }}>
           <h2 style={{ fontSize:'clamp(32px,5vw,60px)', fontWeight:900, letterSpacing:'-2px', color:T.text, marginBottom:20, lineHeight:1.1 }}>Start your journey today.</h2>
           <p style={{ color:T.textMuted, fontSize:16, marginBottom:40, maxWidth:500, margin:'0 auto 40px' }}>Join traders who are finally understanding their edge.</p>
-          <button onClick={onSignup} style={{ background:T.accent, color:'#000', border:'none', borderRadius:16, padding:'18px 48px', fontSize:18, fontWeight:800, cursor:'pointer', boxShadow:`0 0 60px ${T.accent}44` }}>
-            Get Started — Free
-          </button>
+          <button onClick={onSignup} style={{ background:T.accent, color:'#000', border:'none', borderRadius:16, padding:'18px 48px', fontSize:18, fontWeight:800, cursor:'pointer', boxShadow:`0 0 60px ${T.accent}44` }}>Get Started — Free</button>
         </div>
       </section>
 
-      {/* Footer */}
       <footer style={{ borderTop:`1px solid ${T.glassBorder}`, padding:'32px 40px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:16, background:T.glassBg, backdropFilter:'blur(20px)' }}>
         <Logo light={!d}/>
         <div style={{ color:T.textMuted, fontSize:13 }}>© 2026 Journifi · Your financial journey, logged.</div>
-        <div style={{ display:'flex', gap:20 }}>
-          {['Privacy','Terms','Support'].map(l => (
-            <span key={l} style={{ color:T.textMuted, fontSize:13, cursor:'pointer' }}>{l}</span>
-          ))}
-        </div>
+        <div style={{ display:'flex', gap:20 }}>{['Privacy','Terms','Support'].map(l=>(<span key={l} style={{ color:T.textMuted, fontSize:13, cursor:'pointer' }}>{l}</span>))}</div>
       </footer>
     </div>
   );
 }
 
 // ── AUTH PAGE ─────────────────────────────────────────────────────────────────
-function AuthPage({ T, d, mode, onToggleDark, onBack, onSuccess }) {
+function AuthPage({ T, d, mode, onToggleDark, onBack }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -320,39 +982,35 @@ function AuthPage({ T, d, mode, onToggleDark, onBack, onSuccess }) {
     else setForgotSent(true);
   }
 
+  const inp = { padding:'11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' };
+
   return (
     <div style={{ minHeight:'100vh', background:T.pageBg, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24, position:'relative', overflow:'hidden', fontFamily:"'IBM Plex Sans',system-ui,sans-serif" }}>
       <div style={{ position:'absolute', width:600, height:600, borderRadius:'50%', background:T.orb1, filter:'blur(80px)', top:-100, right:-100, pointerEvents:'none' }}/>
       <div style={{ position:'absolute', width:400, height:400, borderRadius:'50%', background:T.orb2, filter:'blur(80px)', bottom:-50, left:-50, pointerEvents:'none' }}/>
-
-      {/* Top nav */}
       <div style={{ position:'absolute', top:0, left:0, right:0, padding:'16px 24px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <button onClick={onBack} style={{ background:'transparent', border:'none', color:T.textMuted, fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>← Back</button>
+        <button onClick={onBack} style={{ background:'transparent', border:'none', color:T.textMuted, fontSize:14, cursor:'pointer' }}>← Back</button>
         <button onClick={onToggleDark} style={{ background:T.glassBg, border:`1px solid ${T.glassBorder}`, borderRadius:8, padding:'6px 10px', cursor:'pointer', fontSize:14, color:T.textMuted }}>{d?'☀':'🌙'}</button>
       </div>
-
       <div style={{ marginBottom:32, textAlign:'center', animation:'fadeIn 0.5s ease' }}>
         <Logo light={!d}/>
         <p style={{ color:T.textMuted, fontSize:13, marginTop:10 }}>Your financial journey, logged.</p>
       </div>
-
       <div style={{ width:'100%', maxWidth:400, background:T.glassBg, backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:20, padding:'28px 24px', animation:'fadeIn 0.6s ease' }}>
-
-        {/* Forgot Password View */}
         {showForgot ? (
           <div>
-            <button onClick={()=>{setShowForgot(false);setForgotSent(false);setAuthError('');}} style={{ background:'transparent', border:'none', color:T.textMuted, fontSize:13, cursor:'pointer', marginBottom:16, display:'flex', alignItems:'center', gap:6 }}>← Back to login</button>
-            <h2 style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8, textAlign:'center' }}>Reset Password</h2>
+            <button onClick={()=>{setShowForgot(false);setForgotSent(false);setAuthError('');}} style={{ background:'transparent', border:'none', color:T.textMuted, fontSize:13, cursor:'pointer', marginBottom:16 }}>← Back to login</button>
+            <h2 style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:16, textAlign:'center' }}>Reset Password</h2>
             {forgotSent ? (
               <div style={{ textAlign:'center', padding:'20px 0' }}>
                 <div style={{ fontSize:40, marginBottom:12 }}>✉️</div>
-                <p style={{ color:T.green, fontWeight:600, fontSize:15, marginBottom:8 }}>Email sent!</p>
-                <p style={{ color:T.textMuted, fontSize:13, lineHeight:1.6 }}>Check your inbox for a password reset link. It may take a minute to arrive.</p>
+                <p style={{ color:T.green, fontWeight:600, fontSize:15, marginBottom:8 }}>Check your inbox!</p>
+                <p style={{ color:T.textMuted, fontSize:13, lineHeight:1.6 }}>We sent a password reset link to {forgotEmail}.</p>
               </div>
             ) : (
-              <form onSubmit={handleForgotPassword} style={{ display:'flex', flexDirection:'column', gap:12, marginTop:20 }}>
-                <p style={{ color:T.textMuted, fontSize:13, lineHeight:1.6 }}>Enter your email and we'll send you a reset link.</p>
-                <input style={{ padding:'11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' }} type="email" placeholder="Your email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required/>
+              <form onSubmit={handleForgotPassword} style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                <p style={{ color:T.textMuted, fontSize:13 }}>Enter your email and we'll send a reset link.</p>
+                <input style={inp} type="email" placeholder="Your email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required/>
                 {authError && <p style={{ color:T.red, fontSize:13 }}>{authError}</p>}
                 <button type="submit" style={{ padding:'12px', background:T.accent, color:'#000', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer' }} disabled={forgotLoading}>{forgotLoading?'Sending...':'Send Reset Link'}</button>
               </form>
@@ -360,160 +1018,32 @@ function AuthPage({ T, d, mode, onToggleDark, onBack, onSuccess }) {
           </div>
         ) : (
           <>
-            <h2 style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:20, textAlign:'center' }}>{mode==='login' ? 'Welcome back' : 'Create your account'}</h2>
-
+            <h2 style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:20, textAlign:'center' }}>{mode==='login'?'Welcome back':'Create your account'}</h2>
             <button onClick={handleGoogleLogin} style={{ width:'100%', padding:'12px 16px', background:d?'rgba(255,255,255,0.92)':'#fff', color:'#111', border:'none', borderRadius:12, fontSize:15, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:18 }}>
               <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
               Continue with Google
             </button>
-
             <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
               <div style={{ flex:1, height:1, background:T.glassBorder }}/><span style={{ color:T.textMuted, fontSize:12 }}>or</span><div style={{ flex:1, height:1, background:T.glassBorder }}/>
             </div>
-
             <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              <input style={{ padding:'11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' }} type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>
-
-              {/* Password with show/hide */}
+              <input style={inp} type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>
               <div style={{ position:'relative' }}>
-                <input style={{ padding:'11px 44px 11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' }} type={showPassword?'text':'password'} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required/>
+                <input style={{...inp, paddingRight:44}} type={showPassword?'text':'password'} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required/>
                 <button type="button" onClick={()=>setShowPassword(!showPassword)} style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'transparent', border:'none', cursor:'pointer', color:T.textMuted, fontSize:16, padding:4, display:'flex', alignItems:'center' }}>
-                  {showPassword ? (
-                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  ) : (
-                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  )}
+                  {showPassword
+                    ? <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    : <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  }
                 </button>
               </div>
-
               {authError && <p style={{ color:T.red, fontSize:13 }}>{authError}</p>}
-
-              {mode==='login' && (
-                <button type="button" onClick={()=>{setShowForgot(true);setForgotEmail(email);setAuthError('');}} style={{ background:'transparent', border:'none', color:T.accent, fontSize:13, cursor:'pointer', textAlign:'right', padding:0 }}>Forgot password?</button>
-              )}
-
-              <button type="submit" style={{ padding:'12px', background:T.accent, color:'#000', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer', marginTop:4 }}>{mode==='login' ? 'Sign In' : 'Create Account'}</button>
+              {mode==='login' && <button type="button" onClick={()=>{setShowForgot(true);setForgotEmail(email);setAuthError('');}} style={{ background:'transparent', border:'none', color:T.accent, fontSize:13, cursor:'pointer', textAlign:'right', padding:0 }}>Forgot password?</button>}
+              <button type="submit" style={{ padding:'12px', background:T.accent, color:'#000', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer', marginTop:4 }}>{mode==='login'?'Sign In':'Create Account'}</button>
             </form>
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-// ── PRICING PAGE ──────────────────────────────────────────────────────────────
-function PricingPage({ T, onGetStarted }) {
-  const [yearly, setYearly] = useState(false);
-  const plans = [
-    { name:'Starter', monthlyPrice:19.99, color:'#6b7280', popular:false, desc:'Perfect for traders just getting started.', features:['Unlimited trade logs','Manual entry only','Basic P&L stats','Win/loss tracking','Day of week filters','Monthly challenge'], missing:['IBKR auto-sync','News feed','AI analysis','Learning Hub'] },
-    { name:'Pro', monthlyPrice:29.99, color:'#00C4B4', popular:true, desc:'For active traders who want real insights.', features:['Everything in Starter','IBKR auto-sync','Advanced analytics','Time of day breakdown','Chart screenshot upload','Strategy + rules tracking','News feed per ticker','Learning Hub','P&L charts & equity curve'], missing:['AI chart analysis','AI coaching'] },
-    { name:'Elite', monthlyPrice:49.99, color:'#a78bfa', popular:false, desc:'The full AI trading coach.', features:['Everything in Pro','AI chart analysis','AI trade coaching','Pre-market AI briefing','Pattern recognition','Weekly performance report','Priority support'], missing:[] },
-  ];
-  return (
-    <div style={{ padding:'48px 24px', maxWidth:1100, margin:'0 auto' }}>
-      <div style={{ textAlign:'center', marginBottom:48 }}>
-        <h1 style={{ fontSize:40, fontWeight:800, color:T.text, letterSpacing:'-1px', marginBottom:12 }}>Plans for every trader</h1>
-        <p style={{ color:T.textMuted, fontSize:16, maxWidth:500, margin:'0 auto 28px' }}>Start free. Upgrade when ready. Cancel anytime.</p>
-        <div style={{ display:'inline-flex', alignItems:'center', gap:12, background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:40, padding:'6px 8px' }}>
-          <button onClick={()=>setYearly(false)} style={{ padding:'8px 20px', borderRadius:32, border:'none', background:!yearly?'#00C4B4':'transparent', color:!yearly?'#000':T.textMuted, fontSize:14, fontWeight:600, cursor:'pointer' }}>Monthly</button>
-          <button onClick={()=>setYearly(true)} style={{ padding:'8px 20px', borderRadius:32, border:'none', background:yearly?'#00C4B4':'transparent', color:yearly?'#000':T.textMuted, fontSize:14, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
-            Yearly <span style={{ background:'#22c55e', color:'#000', fontSize:11, fontWeight:700, padding:'2px 7px', borderRadius:10 }}>-20%</span>
-          </button>
-        </div>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:20 }}>
-        {plans.map(plan => {
-          const price = yearly?(plan.monthlyPrice*0.8).toFixed(2):plan.monthlyPrice.toFixed(2);
-          return (
-            <div key={plan.name} style={{ background:plan.popular?`linear-gradient(135deg,${T.accent}15,${T.accent}08)`:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`, borderRadius:20, padding:28, position:'relative', display:'flex', flexDirection:'column' }}>
-              {plan.popular && <div style={{ position:'absolute', top:-12, left:'50%', transform:'translateX(-50%)', background:'#00C4B4', color:'#000', fontSize:11, fontWeight:700, padding:'4px 14px', borderRadius:20 }}>MOST POPULAR</div>}
-              <div style={{ marginBottom:20 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:plan.color, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{plan.name}</div>
-                <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:8 }}>
-                  <span style={{ fontSize:42, fontWeight:800, color:T.text, letterSpacing:'-2px' }}>${price}</span>
-                  <span style={{ color:T.textMuted, fontSize:14 }}>/mo</span>
-                </div>
-                {yearly && <div style={{ fontSize:12, color:'#22c55e' }}>Save ${(plan.monthlyPrice*0.2*12).toFixed(0)}/year</div>}
-                <p style={{ color:T.textMuted, fontSize:13, marginTop:10, lineHeight:1.5 }}>{plan.desc}</p>
-              </div>
-              <button onClick={onGetStarted} style={{ width:'100%', padding:'13px', background:plan.popular?'#00C4B4':'transparent', color:plan.popular?'#000':T.text, border:`1px solid ${plan.popular?'#00C4B4':T.glassBorder}`, borderRadius:12, fontSize:15, fontWeight:700, cursor:'pointer', marginBottom:24 }}>Get Started</button>
-              <div style={{ flex:1 }}>
-                {plan.features.map(f => (<div key={f} style={{ display:'flex', gap:10, marginBottom:10 }}><span style={{ color:'#22c55e', flexShrink:0 }}>✓</span><span style={{ color:T.text, fontSize:13 }}>{f}</span></div>))}
-                {plan.missing.map(f => (<div key={f} style={{ display:'flex', gap:10, marginBottom:10, opacity:0.3 }}><span style={{ color:T.textMuted, flexShrink:0 }}>✕</span><span style={{ color:T.textMuted, fontSize:13 }}>{f}</span></div>))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function AboutPage({ T }) {
-  return (
-    <div style={{ maxWidth:800, margin:'0 auto', padding:'48px 24px' }}>
-      <div style={{ textAlign:'center', marginBottom:56 }}>
-        <h1 style={{ fontSize:40, fontWeight:800, color:T.text, letterSpacing:'-1px', marginBottom:16 }}>Built by a trader.<br/>For every trader.</h1>
-        <p style={{ color:T.textMuted, fontSize:16, lineHeight:1.8, maxWidth:600, margin:'0 auto' }}>Journifi was born from a simple frustration — when you're learning to trade, there's no single place that tracks your trades, shows your patterns, holds you accountable to your rules, and teaches you at the same time.</p>
-      </div>
-      {[
-        { icon:'📉', title:'The Problem', body:'Most traders lose money not because they don\'t have a strategy — but because they don\'t follow it consistently. They take revenge trades. They exit early. They break their own rules. And a month later, they can\'t even remember what happened.' },
-        { icon:'💡', title:'The Idea', body:'Financial + Journey = Journifi. Every trade you take is a step in your financial journey. Journifi is the memory bank that captures every step — the chart, the setup, the outcome, the lesson.' },
-        { icon:'🎯', title:'The Mission', body:'To give every trader — beginner to advanced, stocks to options to forex — the tools that professional prop firms give their traders. A structured journal. Real analytics. Honest feedback. And an AI coach that knows your patterns.' },
-        { icon:'🚀', title:'Where We\'re Going', body:'IBKR auto-sync. AI chart analysis. Strategy rule tracking. A learning hub from zero to advanced. Monthly challenges. A community. And pricing that doesn\'t punish you for being new.' },
-      ].map(item => (
-        <div key={item.title} style={{ background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:16, padding:'28px', marginBottom:16 }}>
-          <div style={{ fontSize:28, marginBottom:12 }}>{item.icon}</div>
-          <h3 style={{ fontSize:18, fontWeight:700, color:T.text, marginBottom:10 }}>{item.title}</h3>
-          <p style={{ color:T.textMuted, fontSize:14, lineHeight:1.8 }}>{item.body}</p>
-        </div>
-      ))}
-      <div style={{ background:`linear-gradient(135deg,${T.accent}15,${T.accent}05)`, border:`1px solid ${T.accent}33`, borderRadius:16, padding:'32px 28px', marginTop:32, textAlign:'center' }}>
-        <div style={{ fontSize:32, marginBottom:12 }}>👋</div>
-        <h3 style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:10 }}>From the founder</h3>
-        <p style={{ color:T.textMuted, fontSize:14, lineHeight:1.8, maxWidth:540, margin:'0 auto' }}>"I'm Abhilash Rishi — AZ truck driver, day trader, and content creator. I built Journifi because I needed it myself. If it helps one trader stop repeating the same mistakes, it's worth it."</p>
-        <p style={{ color:'#00C4B4', fontWeight:600, fontSize:14, marginTop:16 }}>— Abhilash Rishi, Founder · Journifi</p>
-      </div>
-    </div>
-  );
-}
-
-function SupportPage({ T }) {
-  const [open, setOpen] = useState(null);
-  const faqs = [
-    ['How do I log a trade?','Click "+ Add Trade" on the Journal tab. Fill in the details — P&L calculates automatically from entry, exit, and contracts.'],
-    ['Why isn\'t my P&L calculating?','Make sure both Entry Price and Exit Price are filled in. P&L = (Exit − Entry) × Contracts × 100 for options.'],
-    ['How do filters work?','Click ⚙ Filters on the Journal tab. Filter by date range, day of week, ticker, outcome, and type. Stats update live.'],
-    ['How do I connect IBKR?','IBKR auto-sync is available on the Pro plan. Coming soon.'],
-    ['Can I edit or delete a trade?','Trade editing and deletion is coming soon. Email support@journifi.app to remove a trade.'],
-    ['Is my data private?','Yes. All data is encrypted via Supabase and never shared or sold.'],
-    ['How do I cancel?','Email support@journifi.app. Stripe billing management coming soon.'],
-  ];
-  return (
-    <div style={{ maxWidth:700, margin:'0 auto', padding:'48px 24px' }}>
-      <div style={{ textAlign:'center', marginBottom:48 }}>
-        <h1 style={{ fontSize:40, fontWeight:800, color:T.text, letterSpacing:'-1px', marginBottom:12 }}>Support Center</h1>
-        <p style={{ color:T.textMuted, fontSize:16 }}>Find answers or reach out — we respond within 24 hours.</p>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:40 }}>
-        {[{icon:'✉️',title:'Email Support',desc:'support@journifi.app',sub:'Within 24 hours'},{icon:'💬',title:'Community',desc:'Discord (coming soon)',sub:'Chat with other traders'}].map(c=>(
-          <div key={c.title} style={{ background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:14, padding:'22px 20px', textAlign:'center' }}>
-            <div style={{ fontSize:28, marginBottom:10 }}>{c.icon}</div>
-            <div style={{ fontWeight:700, color:T.text, fontSize:15, marginBottom:4 }}>{c.title}</div>
-            <div style={{ color:'#00C4B4', fontSize:14, marginBottom:4 }}>{c.desc}</div>
-            <div style={{ color:T.textMuted, fontSize:12 }}>{c.sub}</div>
-          </div>
-        ))}
-      </div>
-      <h2 style={{ fontSize:22, fontWeight:700, color:T.text, marginBottom:20 }}>Common Questions</h2>
-      {faqs.map(([q,a],i)=>(
-        <div key={q} style={{ background:T.glassBg, backdropFilter:'blur(20px)', border:`1px solid ${open===i?'#00C4B4'+'44':T.glassBorder}`, borderRadius:12, marginBottom:8, overflow:'hidden' }}>
-          <button onClick={()=>setOpen(open===i?null:i)} style={{ width:'100%', padding:'16px 20px', background:'transparent', border:'none', color:T.text, fontSize:14, fontWeight:600, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', textAlign:'left' }}>
-            {q}<span style={{ color:'#00C4B4', fontSize:18, transform:open===i?'rotate(45deg)':'none', transition:'transform 0.2s', flexShrink:0, marginLeft:12 }}>+</span>
-          </button>
-          {open===i && <div style={{ padding:'0 20px 16px', color:T.textMuted, fontSize:14, lineHeight:1.7 }}>{a}</div>}
-        </div>
-      ))}
     </div>
   );
 }
@@ -523,123 +1053,69 @@ export default function JournifiApp() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(EMPTY_TRADE);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const [strategies, setStrategies] = useState([]);
+  const [showTradeModal, setShowTradeModal] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
-  const [tab, setTab] = useState('journal');
-  const [view, setView] = useState('landing'); // 'landing' | 'login' | 'signup' | 'app'
-
-  const [datePreset, setDatePreset] = useState('all');
-  const [filterDay, setFilterDay] = useState('all');
-  const [filterTicker, setFilterTicker] = useState('all');
-  const [filterOutcome, setFilterOutcome] = useState('all');
-  const [filterType, setFilterType] = useState('all');
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [tab, setTab] = useState('trades');
+  const [view, setView] = useState('landing');
 
   useEffect(() => {
     const sb = getSupabase();
     if (!sb) return;
     sb.auth.getSession().then(({ data: { session } }) => {
       setSession(session); setLoading(false);
-      if (session) { fetchTrades(session.user.id); setView('app'); }
+      if (session) { fetchAll(session.user.id); setView('app'); }
     });
     const { data: { subscription } } = sb.auth.onAuthStateChange((_e, session) => {
       setSession(session);
-      if (session) { fetchTrades(session.user.id); setView('app'); }
+      if (session) { fetchAll(session.user.id); setView('app'); }
       else setView('landing');
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  async function fetchTrades(userId) {
+  async function fetchAll(userId) {
     const sb = getSupabase();
-    const { data } = await sb.from('trades').select('*').eq('user_id', userId).order('date', { ascending: false });
-    if (data) setTrades(data);
+    const [{ data: t }, { data: s }] = await Promise.all([
+      sb.from('trades').select('*').eq('user_id', userId).order('date', { ascending: false }),
+      sb.from('strategies').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+    ]);
+    if (t) setTrades(t);
+    if (s) setStrategies(s);
   }
 
   async function handleLogout() {
     const sb = getSupabase();
     await sb.auth.signOut();
-    setSession(null); setTrades([]); setView('landing');
+    setSession(null); setTrades([]); setStrategies([]); setView('landing');
   }
 
-  function handleFormChange(e) {
-    const { name, value } = e.target;
-    setForm(prev => {
-      const u = { ...prev, [name]: value };
-      if (['entry_price','exit_price','contracts'].includes(name)) {
-        const en=parseFloat(u.entry_price),ex=parseFloat(u.exit_price),co=parseFloat(u.contracts)||1;
-        if (!isNaN(en)&&!isNaN(ex)) u.pnl=((ex-en)*co*100).toFixed(2);
-      }
-      return u;
-    });
-  }
-
-  async function handleSaveTrade(e) {
-    e.preventDefault(); setSaving(true); setSaveError('');
-    const sb = getSupabase();
-    const { error } = await sb.from('trades').insert({
-      user_id:session.user.id, date:form.date, ticker:form.ticker.toUpperCase(),
-      option_type:form.option_type, strike:parseFloat(form.strike)||null, expiry:form.expiry||null,
-      contracts:parseInt(form.contracts)||1, entry_price:parseFloat(form.entry_price)||null,
-      exit_price:parseFloat(form.exit_price)||null, pnl:parseFloat(form.pnl)||null,
-      setup:form.setup, outcome:form.outcome, notes:form.notes,
-    });
-    setSaving(false);
-    if (error) setSaveError(error.message);
-    else { setShowModal(false); setForm(EMPTY_TRADE); fetchTrades(session.user.id); }
-  }
-
-  const uniqueTickers = useMemo(() => [...new Set(trades.map(t=>t.ticker).filter(Boolean))].sort(), [trades]);
-  const filteredTrades = useMemo(() => trades.filter(t => {
-    const d2=new Date(t.date+'T00:00:00');
-    if (datePreset==='custom') { if(customFrom&&d2<new Date(customFrom)) return false; if(customTo&&d2>new Date(customTo)) return false; }
-    else if (datePreset!=='all') { const r=getDateRange(datePreset); if(r&&(d2<r.from||d2>r.to)) return false; }
-    if(filterDay!=='all'&&DAYS[d2.getDay()]!==filterDay) return false;
-    if(filterTicker!=='all'&&t.ticker!==filterTicker) return false;
-    if(filterOutcome!=='all'&&t.outcome!==filterOutcome) return false;
-    if(filterType!=='all'&&t.option_type!==filterType) return false;
-    return true;
-  }), [trades,datePreset,filterDay,filterTicker,filterOutcome,filterType,customFrom,customTo]);
-
-  const totalPnl=filteredTrades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
-  const wins=filteredTrades.filter(t=>t.outcome==='WIN').length;
-  const losses=filteredTrades.filter(t=>t.outcome==='LOSS').length;
-  const winRate=filteredTrades.length?Math.round(wins/filteredTrades.length*100):0;
-  const avgWin=wins?filteredTrades.filter(t=>t.outcome==='WIN').reduce((s,t)=>s+parseFloat(t.pnl||0),0)/wins:0;
-  const avgLoss=losses?filteredTrades.filter(t=>t.outcome==='LOSS').reduce((s,t)=>s+parseFloat(t.pnl||0),0)/losses:0;
-  const activeFilters=[datePreset!=='all',filterDay!=='all',filterTicker!=='all',filterOutcome!=='all',filterType!=='all'].filter(Boolean).length;
-  function resetFilters(){setDatePreset('all');setFilterDay('all');setFilterTicker('all');setFilterOutcome('all');setFilterType('all');setCustomFrom('');setCustomTo('');}
-
-  const d=darkMode;
-  const T={
-    pageBg:d?'linear-gradient(135deg,#0a0c14 0%,#0d1117 50%,#0a0e1a 100%)':'linear-gradient(135deg,#e8edf5 0%,#f0f4fa 50%,#e4eaf3 100%)',
-    glassBg:d?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.65)',
-    glassBorder:d?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)',
-    headerBg:d?'rgba(10,12,20,0.85)':'rgba(255,255,255,0.85)',
-    inputBg:d?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.04)',
-    inputBorder:d?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.12)',
-    modalBg:d?'rgba(13,15,24,0.97)':'rgba(255,255,255,0.97)',
-    tableBorder:d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.05)',
-    text:d?'#e8edf5':'#0d1117',
-    textMuted:d?'#6b7280':'#6b7280',
-    textFaint:d?'#2d3748':'#e2e8f0',
-    accent:'#00C4B4',
-    accentDim:d?'rgba(0,196,180,0.1)':'rgba(0,196,180,0.08)',
+  const d = darkMode;
+  const T = {
+    pageBg: d?'linear-gradient(135deg,#0a0c14 0%,#0d1117 50%,#0a0e1a 100%)':'linear-gradient(135deg,#e8edf5 0%,#f0f4fa 50%,#e4eaf3 100%)',
+    glassBg: d?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.65)',
+    glassBorder: d?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)',
+    headerBg: d?'rgba(10,12,20,0.85)':'rgba(255,255,255,0.85)',
+    inputBg: d?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.04)',
+    inputBorder: d?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.12)',
+    modalBg: d?'rgba(13,15,24,0.97)':'rgba(255,255,255,0.97)',
+    tableBorder: d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.05)',
+    text: d?'#e8edf5':'#0d1117',
+    textMuted: d?'#6b7280':'#6b7280',
+    textFaint: d?'#2d3748':'#e2e8f0',
+    accent: '#00C4B4',
+    accentDim: d?'rgba(0,196,180,0.1)':'rgba(0,196,180,0.08)',
     green:'#22c55e', greenBg:d?'rgba(34,197,94,0.12)':'rgba(34,197,94,0.1)',
     red:'#ef4444', redBg:d?'rgba(239,68,68,0.12)':'rgba(239,68,68,0.1)',
     orb1:d?'rgba(0,196,180,0.07)':'rgba(0,196,180,0.09)',
     orb2:d?'rgba(99,102,241,0.05)':'rgba(99,102,241,0.07)',
   };
 
-  const css=`
+  const css = `
     *{box-sizing:border-box;margin:0;padding:0;}body{margin:0;}
     ::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${T.textFaint};border-radius:3px;}
     input[type=date]::-webkit-calendar-picker-indicator{filter:${d?'invert(1)':'none'};opacity:.4;}
+    input[type=time]::-webkit-calendar-picker-indicator{filter:${d?'invert(1)':'none'};opacity:.4;}
     select option{background:${d?'#0d1117':'#fff'};color:${T.text};}
     @keyframes spin{to{transform:rotate(360deg);}}
     @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
@@ -655,19 +1131,34 @@ export default function JournifiApp() {
     </div></>
   );
 
-  if (view==='landing') return (
-    <><style>{css}</style>
-    <LandingPage T={T} d={d} onLogin={()=>setView('login')} onSignup={()=>setView('signup')} onToggleDark={()=>setDarkMode(!d)}/>
-    </>
-  );
+  if (view==='landing') return <><style>{css}</style><LandingPage T={T} d={d} onLogin={()=>setView('login')} onSignup={()=>setView('signup')} onToggleDark={()=>setDarkMode(!d)}/></>;
+  if (view==='login'||view==='signup') return <><style>{css}</style><AuthPage T={T} d={d} mode={view} onToggleDark={()=>setDarkMode(!d)} onBack={()=>setView('landing')}/></>;
 
-  if (view==='login'||view==='signup') return (
-    <><style>{css}</style>
-    <AuthPage T={T} d={d} mode={view} onToggleDark={()=>setDarkMode(!d)} onBack={()=>setView('landing')} onSuccess={()=>setView('app')}/>
-    </>
-  );
+  // Stats for header
+  const totalPnl = trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const wins = trades.filter(t=>t.outcome==='WIN').length;
+  const losses = trades.filter(t=>t.outcome==='LOSS').length;
+  const winRate = trades.length?Math.round(wins/trades.length*100):0;
+  const avgWin = wins?trades.filter(t=>t.outcome==='WIN').reduce((s,t)=>s+parseFloat(t.pnl||0),0)/wins:0;
+  const avgLoss = losses?trades.filter(t=>t.outcome==='LOSS').reduce((s,t)=>s+parseFloat(t.pnl||0),0)/losses:0;
 
-  const TABS=[{id:'journal',label:'📊 Journal'},{id:'pricing',label:'💎 Pricing'},{id:'about',label:'✦ About'},{id:'support',label:'💬 Support'}];
+  // Streak
+  const sorted = [...trades].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  let streak = 0, streakType = '';
+  for (const t of sorted) {
+    if (streak===0) { streakType=t.outcome; streak=1; }
+    else if (t.outcome===streakType) streak++;
+    else break;
+  }
+
+  const TABS = [
+    { id:'trades', label:'📈 Trades' },
+    { id:'pnl', label:'💰 P&L' },
+    { id:'strategies', label:'🎯 Strategies' },
+    { id:'pricing', label:'💎 Pricing' },
+    { id:'about', label:'✦ About' },
+    { id:'support', label:'💬 Support' },
+  ];
 
   return (
     <><style>{css}</style>
@@ -675,111 +1166,120 @@ export default function JournifiApp() {
       <div style={{position:'fixed',width:800,height:800,borderRadius:'50%',background:T.orb1,filter:'blur(100px)',top:-200,right:-200,pointerEvents:'none',zIndex:0}}/>
       <div style={{position:'fixed',width:500,height:500,borderRadius:'50%',background:T.orb2,filter:'blur(100px)',bottom:-100,left:-100,pointerEvents:'none',zIndex:0}}/>
 
+      {/* Header */}
       <header style={{position:'sticky',top:0,zIndex:50,background:T.headerBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderBottom:`1px solid ${T.glassBorder}`}}>
-        <div style={{padding:'0 24px',height:56,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <Logo light={!d}/>
-          <nav style={{position:'absolute',left:'50%',transform:'translateX(-50%)',display:'flex',gap:4,background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:12,padding:'4px'}}>
+        <div style={{padding:'0 20px',height:56,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+          <Logo light={!d} size="sm"/>
+          <nav style={{display:'flex',gap:2,background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:12,padding:'3px',flexWrap:'nowrap',overflowX:'auto'}}>
             {TABS.map(t=>(
-              <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'7px 16px',borderRadius:8,border:'none',background:tab===t.id?T.accent:'transparent',color:tab===t.id?'#000':T.textMuted,fontSize:13,fontWeight:tab===t.id?700:500,cursor:'pointer',whiteSpace:'nowrap',transition:'all 0.15s'}}>{t.label}</button>
+              <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'6px 14px',borderRadius:8,border:'none',background:tab===t.id?T.accent:'transparent',color:tab===t.id?'#000':T.textMuted,fontSize:12,fontWeight:tab===t.id?700:500,cursor:'pointer',whiteSpace:'nowrap',transition:'all 0.15s'}}>{t.label}</button>
             ))}
           </nav>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <button onClick={()=>setDarkMode(!d)} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:14,color:T.textMuted}}>{d?'☀':'🌙'}</button>
-            <span style={{color:T.textMuted,fontSize:12,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{session?.user?.email}</span>
-            <button onClick={handleLogout} style={{background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:12}}>Sign Out</button>
+          <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+            <button onClick={()=>setDarkMode(!d)} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'5px 9px',cursor:'pointer',fontSize:14,color:T.textMuted}}>{d?'☀':'🌙'}</button>
+            <button onClick={handleLogout} style={{background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'5px 12px',cursor:'pointer',fontSize:12}}>Sign Out</button>
           </div>
         </div>
       </header>
 
-      <div style={{position:'relative',zIndex:1}}>
-        {tab==='journal' && <>
-          <div style={{display:'flex',flexWrap:'wrap',borderBottom:`1px solid ${T.glassBorder}`,background:d?'rgba(10,12,20,0.6)':'rgba(255,255,255,0.5)',backdropFilter:'blur(20px)'}}>
-            {[{label:'Total P&L',value:`${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}`,color:totalPnl>=0?T.green:T.red},{label:'Win Rate',value:`${winRate}%`,color:T.text},{label:'Trades',value:filteredTrades.length,color:T.text},{label:'Wins',value:wins,color:T.green},{label:'Losses',value:losses,color:T.red},{label:'Avg Win',value:`+$${avgWin.toFixed(2)}`,color:T.green},{label:'Avg Loss',value:`$${avgLoss.toFixed(2)}`,color:T.red}].map(stat=>(
-              <div key={stat.label} style={{flex:'1 1 110px',padding:'12px 18px',borderRight:`1px solid ${T.glassBorder}`}}>
-                <div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>{stat.label}</div>
-                <div style={{fontSize:19,fontWeight:700,color:stat.color,fontVariantNumeric:'tabular-nums'}}>{stat.value}</div>
-              </div>
-            ))}
+      {/* Stats Bar */}
+      <div style={{display:'flex',flexWrap:'wrap',borderBottom:`1px solid ${T.glassBorder}`,background:d?'rgba(10,12,20,0.6)':'rgba(255,255,255,0.5)',backdropFilter:'blur(20px)',position:'relative',zIndex:1}}>
+        {[
+          {label:'Total P&L',value:`${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}`,color:totalPnl>=0?T.green:T.red},
+          {label:'Win Rate',value:`${winRate}%`,color:T.text},
+          {label:'Trades',value:trades.length,color:T.text},
+          {label:'Wins',value:wins,color:T.green},
+          {label:'Losses',value:losses,color:T.red},
+          {label:'Avg Win',value:`+$${avgWin.toFixed(2)}`,color:T.green},
+          {label:'Avg Loss',value:`$${avgLoss.toFixed(2)}`,color:T.red},
+          {label:'Streak',value:`${streak} ${streakType==='WIN'?'W':streakType==='LOSS'?'L':''}`,color:streakType==='WIN'?T.green:streakType==='LOSS'?T.red:T.text},
+        ].map(stat=>(
+          <div key={stat.label} style={{flex:'1 1 100px',padding:'10px 16px',borderRight:`1px solid ${T.glassBorder}`}}>
+            <div style={{fontSize:9,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>{stat.label}</div>
+            <div style={{fontSize:17,fontWeight:700,color:stat.color,fontVariantNumeric:'tabular-nums'}}>{stat.value}</div>
           </div>
-          <main style={{padding:'20px 24px',maxWidth:1400,margin:'0 auto'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,flexWrap:'wrap',gap:8}}>
-              <h2 style={{fontSize:15,fontWeight:600,color:T.text}}>Trade Journal</h2>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                <button onClick={()=>setShowFilters(!showFilters)} style={{background:activeFilters>0?T.accent:T.glassBg,backdropFilter:'blur(10px)',color:activeFilters>0?'#000':T.textMuted,border:`1px solid ${activeFilters>0?T.accent:T.glassBorder}`,borderRadius:8,padding:'7px 14px',fontSize:13,cursor:'pointer',fontWeight:500}}>⚙ Filters {activeFilters>0?`(${activeFilters})`:''}</button>
-                {activeFilters>0&&<button onClick={resetFilters} style={{background:'transparent',color:T.red,border:`1px solid ${T.red}44`,borderRadius:8,padding:'7px 12px',fontSize:13,cursor:'pointer'}}>✕ Reset</button>}
-                <button onClick={()=>{setShowModal(true);setForm(EMPTY_TRADE);}} style={{background:T.accent,color:'#000',border:'none',borderRadius:8,padding:'8px 16px',fontSize:14,fontWeight:700,cursor:'pointer'}}>+ Add Trade</button>
-              </div>
-            </div>
-            {showFilters&&(
-              <div style={{background:T.glassBg,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:18,marginBottom:16,display:'flex',flexDirection:'column',gap:14,animation:'fadeIn 0.2s ease'}}>
-                {[{label:'Date Range',key:'datePreset',setter:setDatePreset,val:datePreset,opts:[['all','All Time'],['today','Today'],['this_week','This Week'],['last_week','Last Week'],['this_month','This Month'],['last_month','Last Month'],['custom','Custom']]},{label:'Day',key:'filterDay',setter:setFilterDay,val:filterDay,opts:[['all','All'],['Monday','Mon'],['Tuesday','Tue'],['Wednesday','Wed'],['Thursday','Thu'],['Friday','Fri']]},{label:'Outcome',key:'filterOutcome',setter:setFilterOutcome,val:filterOutcome,opts:[['all','All'],['WIN','Win'],['LOSS','Loss'],['BREAKEVEN','Breakeven']]},{label:'Type',key:'filterType',setter:setFilterType,val:filterType,opts:[['all','All'],['CALL','Call'],['PUT','Put']]}].map(f=>(
-                  <div key={f.key}><div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6,fontWeight:600}}>{f.label}</div><div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{f.opts.map(([val,label])=>(<button key={val} onClick={()=>f.setter(val)} style={{background:f.val===val?T.accent:T.inputBg,color:f.val===val?'#000':T.textMuted,border:`1px solid ${f.val===val?T.accent:T.inputBorder}`,borderRadius:20,padding:'5px 13px',fontSize:12,cursor:'pointer',fontWeight:f.val===val?700:400}}>{label}</button>))}</div></div>
-                ))}
-                <div><div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6,fontWeight:600}}>Ticker</div><div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{[['all','All'],...uniqueTickers.map(t=>[t,t])].map(([val,label])=>(<button key={val} onClick={()=>setFilterTicker(val)} style={{background:filterTicker===val?T.accent:T.inputBg,color:filterTicker===val?'#000':T.textMuted,border:`1px solid ${filterTicker===val?T.accent:T.inputBorder}`,borderRadius:20,padding:'5px 13px',fontSize:12,cursor:'pointer',fontWeight:filterTicker===val?700:400}}>{label}</button>))}</div></div>
-                {datePreset==='custom'&&(<div style={{display:'flex',gap:10,alignItems:'center'}}><input style={{padding:'7px 12px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,color:T.text,fontSize:13}} type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}/><span style={{color:T.textMuted}}>→</span><input style={{padding:'7px 12px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,color:T.text,fontSize:13}} type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}/></div>)}
-              </div>
-            )}
-            {filteredTrades.length===0?(
-              <div style={{textAlign:'center',padding:'70px 0'}}><div style={{fontSize:44,marginBottom:12}}>📋</div><p style={{color:T.text,fontSize:17,fontWeight:600,marginBottom:6}}>{trades.length>0?'No trades match your filters.':'No trades yet.'}</p><p style={{color:T.textMuted,fontSize:13}}>{trades.length>0?'Try adjusting your filters.':'Click "+ Add Trade" to log your first trade.'}</p></div>
-            ):(
-              <div style={{overflowX:'auto',background:T.glassBg,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14}}>
-                <table style={{width:'100%',borderCollapse:'collapse',minWidth:900}}>
-                  <thead><tr style={{borderBottom:`1px solid ${T.glassBorder}`}}>{['Date','Ticker','Type','Strike','Expiry','Qty','Entry','Exit','P&L','Setup','Result','Notes'].map(h=>(<th key={h} style={{textAlign:'left',padding:'11px 16px',color:T.textMuted,fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.08em',whiteSpace:'nowrap'}}>{h}</th>))}</tr></thead>
-                  <tbody>
-                    {filteredTrades.map(t=>(
-                      <tr key={t.id} className="trow" style={{borderBottom:`1px solid ${T.tableBorder}`}}>
-                        <td style={{padding:'12px 16px'}}><div style={{fontSize:13,color:T.text,fontWeight:500}}>{t.date}</div><div style={{fontSize:10,color:T.textMuted,marginTop:2}}>{DAYS[new Date(t.date+'T00:00:00').getDay()]}</div></td>
-                        <td style={{padding:'12px 16px',fontSize:14,fontWeight:700,color:T.accent}}>{t.ticker}</td>
-                        <td style={{padding:'12px 16px'}}><span style={{padding:'3px 8px',borderRadius:5,fontSize:11,fontWeight:700,background:t.option_type==='CALL'?T.greenBg:T.redBg,color:t.option_type==='CALL'?T.green:T.red}}>{t.option_type}</span></td>
-                        <td style={{padding:'12px 16px',fontSize:13,color:T.text}}>{t.strike?`$${t.strike}`:<span style={{color:T.textFaint}}>—</span>}</td>
-                        <td style={{padding:'12px 16px',fontSize:13,color:T.text}}>{t.expiry||<span style={{color:T.textFaint}}>—</span>}</td>
-                        <td style={{padding:'12px 16px',fontSize:13,color:T.text}}>{t.contracts}</td>
-                        <td style={{padding:'12px 16px',fontSize:13,color:T.text}}>{t.entry_price?`$${t.entry_price}`:<span style={{color:T.textFaint}}>—</span>}</td>
-                        <td style={{padding:'12px 16px',fontSize:13,color:T.text}}>{t.exit_price?`$${t.exit_price}`:<span style={{color:T.textFaint}}>—</span>}</td>
-                        <td style={{padding:'12px 16px',fontSize:14,fontWeight:700,color:parseFloat(t.pnl)>=0?T.green:T.red,fontVariantNumeric:'tabular-nums'}}>{parseFloat(t.pnl)>=0?'+':''}${parseFloat(t.pnl||0).toFixed(2)}</td>
-                        <td style={{padding:'12px 16px',fontSize:13,color:T.textMuted}}>{t.setup||<span style={{color:T.textFaint}}>—</span>}</td>
-                        <td style={{padding:'12px 16px'}}><span style={{padding:'3px 8px',borderRadius:5,fontSize:11,fontWeight:700,background:t.outcome==='WIN'?T.greenBg:t.outcome==='LOSS'?T.redBg:'rgba(107,114,128,0.12)',color:t.outcome==='WIN'?T.green:t.outcome==='LOSS'?T.red:T.textMuted}}>{t.outcome}</span></td>
-                        <td style={{padding:'12px 16px',fontSize:13,color:T.textMuted,maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.notes||<span style={{color:T.textFaint}}>—</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </main>
-        </>}
-        {tab==='pricing'&&<PricingPage T={T} onGetStarted={()=>{}}/>}
-        {tab==='about'&&<AboutPage T={T}/>}
-        {tab==='support'&&<SupportPage T={T}/>}
+        ))}
       </div>
 
-      {showModal&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,padding:16}} onClick={()=>setShowModal(false)}>
-          <div style={{background:T.modalBg,border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:28,width:'100%',maxWidth:620,maxHeight:'90vh',overflowY:'auto',animation:'fadeIn 0.2s ease'}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-              <h2 style={{fontSize:18,fontWeight:700,color:T.text}}>Log Trade</h2>
-              <button onClick={()=>setShowModal(false)} style={{background:'transparent',border:'none',color:T.textMuted,fontSize:22,cursor:'pointer'}}>✕</button>
+      {/* Main content */}
+      <main style={{padding:'20px 24px',maxWidth:1400,margin:'0 auto',position:'relative',zIndex:1}}>
+        {tab==='trades' && <TradesTab trades={trades} T={T} strategies={strategies} onAddTrade={()=>setShowTradeModal(true)}/>}
+        {tab==='pnl' && <PnlTab trades={trades} T={T}/>}
+        {tab==='strategies' && <StrategiesTab trades={trades} strategies={strategies} T={T} session={session} onRefresh={()=>fetchAll(session.user.id)}/>}
+        {tab==='pricing' && (
+          <div style={{padding:'48px 0',maxWidth:1100,margin:'0 auto'}}>
+            <div style={{textAlign:'center',marginBottom:48}}>
+              <h1 style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:12}}>Plans for every trader</h1>
+              <p style={{color:T.textMuted,fontSize:16}}>Start free. Upgrade when ready. Cancel anytime.</p>
             </div>
-            <form onSubmit={handleSaveTrade}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-                {[{l:'Date',n:'date',t:'date',r:true},{l:'Ticker',n:'ticker',t:'text',p:'SPY',r:true},{l:'Strike',n:'strike',t:'number',p:'500'},{l:'Expiry',n:'expiry',t:'date'},{l:'Contracts',n:'contracts',t:'number'},{l:'Entry Price',n:'entry_price',t:'number',p:'1.50'},{l:'Exit Price',n:'exit_price',t:'number',p:'3.00'}].map(f=>(
-                  <div key={f.n}><label style={{display:'block',fontSize:11,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.06em',fontWeight:600,marginBottom:6}}>{f.l}</label><input style={{width:'100%',padding:'10px 12px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,color:T.text,fontSize:14,outline:'none'}} type={f.t} name={f.n} placeholder={f.p} value={form[f.n]} onChange={handleFormChange} required={f.r} step={f.t==='number'?'0.01':undefined} min={f.n==='contracts'?'1':undefined}/></div>
-                ))}
-                <div><label style={{display:'block',fontSize:11,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.06em',fontWeight:600,marginBottom:6}}>P&L (auto)</label><input style={{width:'100%',padding:'10px 12px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,color:parseFloat(form.pnl)>=0?T.green:T.red,fontSize:14,fontWeight:700,outline:'none'}} type="number" step="0.01" name="pnl" placeholder="0.00" value={form.pnl} onChange={handleFormChange}/></div>
-                {[{l:'Type',n:'option_type',opts:['CALL','PUT']},{l:'Outcome',n:'outcome',opts:['WIN','LOSS','BREAKEVEN']}].map(f=>(
-                  <div key={f.n}><label style={{display:'block',fontSize:11,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.06em',fontWeight:600,marginBottom:6}}>{f.l}</label><select style={{width:'100%',padding:'10px 12px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,color:T.text,fontSize:14,outline:'none'}} name={f.n} value={form[f.n]} onChange={handleFormChange}>{f.opts.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-                ))}
-                <div style={{gridColumn:'1/-1'}}><label style={{display:'block',fontSize:11,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.06em',fontWeight:600,marginBottom:6}}>Setup</label><input style={{width:'100%',padding:'10px 12px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,color:T.text,fontSize:14,outline:'none'}} type="text" name="setup" placeholder="VWAP reclaim, double bottom, trap..." value={form.setup} onChange={handleFormChange}/></div>
-                <div style={{gridColumn:'1/-1'}}><label style={{display:'block',fontSize:11,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.06em',fontWeight:600,marginBottom:6}}>Notes</label><textarea style={{width:'100%',padding:'10px 12px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,color:T.text,fontSize:14,height:76,resize:'vertical',outline:'none',fontFamily:'inherit'}} name="notes" placeholder="What happened? What did you learn?" value={form.notes} onChange={handleFormChange}/></div>
-              </div>
-              {saveError&&<p style={{color:T.red,fontSize:13,marginTop:12}}>{saveError}</p>}
-              <div style={{display:'flex',gap:10,marginTop:20}}>
-                <button type="button" onClick={()=>setShowModal(false)} style={{flex:1,padding:'12px',background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:10,fontSize:15,cursor:'pointer'}}>Cancel</button>
-                <button type="submit" style={{flex:2,padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Trade'}</button>
-              </div>
-            </form>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:20}}>
+              {[{name:'Starter',price:'$19.99',color:'#6b7280',features:['Unlimited trades','All asset types','Basic analytics','Strategy tracking','Monthly challenge']},{name:'Pro',price:'$29.99',color:T.accent,popular:true,features:['Everything in Starter','IBKR auto-sync','Advanced analytics + charts','P&L calendar','Time of day breakdown','Learning Hub']},{name:'Elite',price:'$49.99',color:'#a78bfa',features:['Everything in Pro','AI chart analysis','AI trade coaching','Pre-market AI briefing','Weekly performance report','Priority support']}].map(plan=>(
+                <div key={plan.name} style={{background:plan.popular?`linear-gradient(135deg,${T.accent}15,${T.accent}08)`:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`,borderRadius:20,padding:28,position:'relative',display:'flex',flexDirection:'column'}}>
+                  {plan.popular&&<div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:T.accent,color:'#000',fontSize:11,fontWeight:700,padding:'4px 14px',borderRadius:20,whiteSpace:'nowrap'}}>MOST POPULAR</div>}
+                  <div style={{fontSize:12,fontWeight:700,color:plan.color,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>{plan.name}</div>
+                  <div style={{fontSize:38,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:20}}>{plan.price}<span style={{fontSize:14,fontWeight:400,color:T.textMuted}}>/mo</span></div>
+                  {plan.features.map(f=>(<div key={f} style={{display:'flex',gap:10,marginBottom:10}}><span style={{color:T.green,flexShrink:0}}>✓</span><span style={{color:T.text,fontSize:13}}>{f}</span></div>))}
+                  <button style={{width:'100%',padding:'13px',background:plan.popular?T.accent:'transparent',color:plan.popular?'#000':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:12,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:'auto',paddingTop:20}}>Get Started</button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+        {tab==='about' && (
+          <div style={{maxWidth:800,margin:'0 auto',padding:'48px 0'}}>
+            <div style={{textAlign:'center',marginBottom:48}}>
+              <h1 style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:16}}>Built by a trader.<br/>For every trader.</h1>
+              <p style={{color:T.textMuted,fontSize:16,lineHeight:1.8,maxWidth:600,margin:'0 auto'}}>Journifi was born from a simple frustration — when you're learning to trade, there's no single place that tracks ALL your trades, shows your patterns, holds you accountable to your rules, and teaches you at the same time.</p>
+            </div>
+            {[{icon:'📉',title:'The Problem',body:"Most traders lose money not because they don't have a strategy — but because they don't follow it consistently. Revenge trades. Early exits. Broken rules. A month later you can't even remember what happened."},{icon:'💡',title:'The Idea',body:'Financial + Journey = Journifi. Every trade is a step in your financial journey. Journifi is the memory bank — the chart, the setup, the outcome, the lesson. All in one place.'},{icon:'🎯',title:'The Mission',body:'To give every trader — beginner to advanced, stocks to options to forex to crypto — the tools that professional prop firms give their traders. A structured journal. Real analytics. Honest feedback.'},{icon:'🚀',title:'Where We\'re Going',body:'AI chart analysis. Strategy rule tracking with P&L impact. Learning hub from zero to advanced. Monthly challenges. IBKR auto-sync. A community. This is just the beginning.'}].map(item=>(
+              <div key={item.title} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:28,marginBottom:16}}>
+                <div style={{fontSize:28,marginBottom:12}}>{item.icon}</div>
+                <h3 style={{fontSize:18,fontWeight:700,color:T.text,marginBottom:10}}>{item.title}</h3>
+                <p style={{color:T.textMuted,fontSize:14,lineHeight:1.8}}>{item.body}</p>
+              </div>
+            ))}
+            <div style={{background:`linear-gradient(135deg,${T.accent}15,${T.accent}05)`,border:`1px solid ${T.accent}33`,borderRadius:16,padding:'32px 28px',textAlign:'center'}}>
+              <div style={{fontSize:32,marginBottom:12}}>👋</div>
+              <h3 style={{fontSize:20,fontWeight:700,color:T.text,marginBottom:10}}>From the founder</h3>
+              <p style={{color:T.textMuted,fontSize:14,lineHeight:1.8,maxWidth:540,margin:'0 auto'}}>"I'm Abhilash Rishi — AZ truck driver, day trader, and content creator. I built Journifi because I needed it myself. Everything you see here was built from real trading pain points."</p>
+              <p style={{color:T.accent,fontWeight:600,fontSize:14,marginTop:16}}>— Abhilash Rishi, Founder · Journifi</p>
+            </div>
+          </div>
+        )}
+        {tab==='support' && (
+          <div style={{maxWidth:700,margin:'0 auto',padding:'48px 0'}}>
+            <div style={{textAlign:'center',marginBottom:40}}>
+              <h1 style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:12}}>Support Center</h1>
+              <p style={{color:T.textMuted,fontSize:16}}>Find answers or reach out — we respond within 24 hours.</p>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:32}}>
+              {[{icon:'✉️',title:'Email',desc:'support@journifi.app',sub:'24hr response'},{icon:'💬',title:'Discord',desc:'Community (coming soon)',sub:'Chat with traders'}].map(c=>(
+                <div key={c.title} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'20px',textAlign:'center'}}>
+                  <div style={{fontSize:28,marginBottom:10}}>{c.icon}</div>
+                  <div style={{fontWeight:700,color:T.text,fontSize:15,marginBottom:4}}>{c.title}</div>
+                  <div style={{color:T.accent,fontSize:13,marginBottom:4}}>{c.desc}</div>
+                  <div style={{color:T.textMuted,fontSize:12}}>{c.sub}</div>
+                </div>
+              ))}
+            </div>
+            {[['How do I log a trade?','Click "+ Add Trade" on the Trades tab. Select your asset type first — options, stocks, forex, futures, or crypto. Fields change based on what you pick. P&L calculates automatically.'],['What asset types are supported?','Currently: Options, Stocks, Forex, Futures, and Crypto. All can be logged manually. IBKR auto-sync for options is coming soon.'],['How do strategies work?','Go to the Strategies tab. Create a strategy with a name and your own custom rules checklist. Then when logging trades, select which strategy you used.'],['How do filters work?','On the Trades tab, use the asset type buttons (All/Stocks/Options etc) and the ⚙ Filters button to filter by date, outcome, and more.'],['Is my data private?','Yes. All data is encrypted via Supabase and never shared or sold. Only you can see your trades.'],['How do I cancel?','Email support@journifi.app. Stripe billing management coming soon.']].map(([q,a],i)=>{
+              const [open,setOpen]=useState(false);
+              return (
+                <div key={q} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${open?T.accent+'44':T.glassBorder}`,borderRadius:12,marginBottom:8,overflow:'hidden'}}>
+                  <button onClick={()=>setOpen(!open)} style={{width:'100%',padding:'16px 20px',background:'transparent',border:'none',color:T.text,fontSize:14,fontWeight:600,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
+                    {q}<span style={{color:T.accent,fontSize:18,transform:open?'rotate(45deg)':'none',transition:'transform 0.2s',flexShrink:0,marginLeft:12}}>+</span>
+                  </button>
+                  {open&&<div style={{padding:'0 20px 16px',color:T.textMuted,fontSize:14,lineHeight:1.7}}>{a}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      {/* Trade Modal */}
+      {showTradeModal && (
+        <TradeModal T={T} session={session} strategies={strategies} onClose={()=>setShowTradeModal(false)} onSaved={()=>fetchAll(session.user.id)}/>
       )}
     </div></>
   );
