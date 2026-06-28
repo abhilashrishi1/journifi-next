@@ -293,6 +293,11 @@ function AuthPage({ T, d, mode, onToggleDark, onBack, onSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   async function handleGoogleLogin() {
     const sb = getSupabase();
@@ -304,6 +309,15 @@ function AuthPage({ T, d, mode, onToggleDark, onBack, onSuccess }) {
     const sb = getSupabase();
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) setAuthError(error.message);
+  }
+
+  async function handleForgotPassword(e) {
+    e.preventDefault(); setForgotLoading(true); setAuthError('');
+    const sb = getSupabase();
+    const { error } = await sb.auth.resetPasswordForEmail(forgotEmail, { redirectTo:'https://journifi-next.vercel.app' });
+    setForgotLoading(false);
+    if (error) setAuthError(error.message);
+    else setForgotSent(true);
   }
 
   return (
@@ -323,23 +337,65 @@ function AuthPage({ T, d, mode, onToggleDark, onBack, onSuccess }) {
       </div>
 
       <div style={{ width:'100%', maxWidth:400, background:T.glassBg, backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)', border:`1px solid ${T.glassBorder}`, borderRadius:20, padding:'28px 24px', animation:'fadeIn 0.6s ease' }}>
-        <h2 style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:20, textAlign:'center' }}>{mode==='login' ? 'Welcome back' : 'Create your account'}</h2>
 
-        <button onClick={handleGoogleLogin} style={{ width:'100%', padding:'12px 16px', background:d?'rgba(255,255,255,0.92)':'#fff', color:'#111', border:'none', borderRadius:12, fontSize:15, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:18 }}>
-          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
-          Continue with Google
-        </button>
+        {/* Forgot Password View */}
+        {showForgot ? (
+          <div>
+            <button onClick={()=>{setShowForgot(false);setForgotSent(false);setAuthError('');}} style={{ background:'transparent', border:'none', color:T.textMuted, fontSize:13, cursor:'pointer', marginBottom:16, display:'flex', alignItems:'center', gap:6 }}>← Back to login</button>
+            <h2 style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8, textAlign:'center' }}>Reset Password</h2>
+            {forgotSent ? (
+              <div style={{ textAlign:'center', padding:'20px 0' }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>✉️</div>
+                <p style={{ color:T.green, fontWeight:600, fontSize:15, marginBottom:8 }}>Email sent!</p>
+                <p style={{ color:T.textMuted, fontSize:13, lineHeight:1.6 }}>Check your inbox for a password reset link. It may take a minute to arrive.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} style={{ display:'flex', flexDirection:'column', gap:12, marginTop:20 }}>
+                <p style={{ color:T.textMuted, fontSize:13, lineHeight:1.6 }}>Enter your email and we'll send you a reset link.</p>
+                <input style={{ padding:'11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' }} type="email" placeholder="Your email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required/>
+                {authError && <p style={{ color:T.red, fontSize:13 }}>{authError}</p>}
+                <button type="submit" style={{ padding:'12px', background:T.accent, color:'#000', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer' }} disabled={forgotLoading}>{forgotLoading?'Sending...':'Send Reset Link'}</button>
+              </form>
+            )}
+          </div>
+        ) : (
+          <>
+            <h2 style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:20, textAlign:'center' }}>{mode==='login' ? 'Welcome back' : 'Create your account'}</h2>
 
-        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
-          <div style={{ flex:1, height:1, background:T.glassBorder }}/><span style={{ color:T.textMuted, fontSize:12 }}>or</span><div style={{ flex:1, height:1, background:T.glassBorder }}/>
-        </div>
+            <button onClick={handleGoogleLogin} style={{ width:'100%', padding:'12px 16px', background:d?'rgba(255,255,255,0.92)':'#fff', color:'#111', border:'none', borderRadius:12, fontSize:15, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:18 }}>
+              <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+              Continue with Google
+            </button>
 
-        <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <input style={{ padding:'11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' }} type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>
-          <input style={{ padding:'11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' }} type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required/>
-          {authError && <p style={{ color:T.red, fontSize:13 }}>{authError}</p>}
-          <button type="submit" style={{ padding:'12px', background:T.accent, color:'#000', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer', marginTop:4 }}>{mode==='login' ? 'Sign In' : 'Create Account'}</button>
-        </form>
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
+              <div style={{ flex:1, height:1, background:T.glassBorder }}/><span style={{ color:T.textMuted, fontSize:12 }}>or</span><div style={{ flex:1, height:1, background:T.glassBorder }}/>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <input style={{ padding:'11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' }} type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>
+
+              {/* Password with show/hide */}
+              <div style={{ position:'relative' }}>
+                <input style={{ padding:'11px 44px 11px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%' }} type={showPassword?'text':'password'} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required/>
+                <button type="button" onClick={()=>setShowPassword(!showPassword)} style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'transparent', border:'none', cursor:'pointer', color:T.textMuted, fontSize:16, padding:4, display:'flex', alignItems:'center' }}>
+                  {showPassword ? (
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  ) : (
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  )}
+                </button>
+              </div>
+
+              {authError && <p style={{ color:T.red, fontSize:13 }}>{authError}</p>}
+
+              {mode==='login' && (
+                <button type="button" onClick={()=>{setShowForgot(true);setForgotEmail(email);setAuthError('');}} style={{ background:'transparent', border:'none', color:T.accent, fontSize:13, cursor:'pointer', textAlign:'right', padding:0 }}>Forgot password?</button>
+              )}
+
+              <button type="submit" style={{ padding:'12px', background:T.accent, color:'#000', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer', marginTop:4 }}>{mode==='login' ? 'Sign In' : 'Create Account'}</button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
