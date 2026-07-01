@@ -749,6 +749,299 @@ function StrategiesTab({ trades, strategies, T, session, onRefresh }) {
   );
 }
 
+// ── DAILY JOURNAL TAB ─────────────────────────────────────────────────────────
+const DEFAULT_TASKS = {
+  premarket: [
+    'Review market conditions (futures, VIX)',
+    'Check economic calendar for news events',
+    'Identify key support/resistance levels',
+    'Define trading plan for the day',
+    'Set max loss limit for the day',
+  ],
+  session: [
+    'Follow entry checklist before every trade',
+    'Set stop loss before entering position',
+    'Do not revenge trade after a loss',
+  ],
+  postmarket: [
+    'Review all trades taken today',
+    'Tag setups and mistakes',
+    'Document lessons learned',
+    'Update trade journal notes',
+  ],
+};
+
+function DailyJournalTab({ T, trades, session }) {
+  const today = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [journalTab, setJournalTab] = useState('premarket');
+  const [preMarketNotes, setPreMarketNotes] = useState('');
+  const [postMarketNotes, setPostMarketNotes] = useState('');
+  const [checkedTasks, setCheckedTasks] = useState({});
+  const [saved, setSaved] = useState(false);
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [sessionTime, setSessionTime] = useState(0);
+
+  // Session timer
+  useEffect(() => {
+    let timer;
+    if (sessionStarted) {
+      timer = setInterval(() => setSessionTime(t => t + 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [sessionStarted]);
+
+  const formatTime = (s) => {
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    return h > 0 ? `${h}h ${m}m ${sec}s` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  };
+
+  function toggleTask(section, i) {
+    const key = `${section}-${i}`;
+    setCheckedTasks(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const totalTasks = Object.values(DEFAULT_TASKS).flat().length;
+  const completedTasks = Object.values(checkedTasks).filter(Boolean).length;
+
+  // Today's trades
+  const todayTrades = trades.filter(t => t.date === selectedDate);
+  const todayPnl = todayTrades.reduce((s,t) => s + (parseFloat(t.pnl)||0), 0);
+  const todayWins = todayTrades.filter(t => t.outcome === 'WIN').length;
+
+  // Activity heatmap data - last 12 weeks
+  const heatmapData = useMemo(() => {
+    const weeks = [];
+    const now = new Date();
+    for (let w = 11; w >= 0; w--) {
+      const week = [];
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(now);
+        date.setDate(now.getDate() - (w * 7) - (now.getDay() - d));
+        const dateStr = date.toISOString().split('T')[0];
+        const dayTrades = trades.filter(t => t.date === dateStr);
+        const pnl = dayTrades.reduce((s,t) => s + (parseFloat(t.pnl)||0), 0);
+        week.push({ date: dateStr, trades: dayTrades.length, pnl, isToday: dateStr === today });
+      }
+      weeks.push(week);
+    }
+    return weeks;
+  }, [trades, today]);
+
+  // Streak
+  let streak = 0;
+  const sortedDates = [...new Set(trades.map(t=>t.date))].sort().reverse();
+  for (const date of sortedDates) {
+    const dayTrades = trades.filter(t=>t.date===date);
+    if (dayTrades.length > 0) streak++;
+    else break;
+  }
+
+  function handleSave() {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  const card = { background:T.glassBg, backdropFilter:'blur(24px)', border:`1px solid ${T.glassBorder}`, borderRadius:16, padding:20, boxShadow:T.cardShadow };
+  const inp = { padding:'10px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:13, outline:'none', width:'100%', fontFamily:'inherit', resize:'vertical' };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20}}>
+
+      {/* Today Summary Bar */}
+      <div style={{...card,background:`linear-gradient(135deg,${T.accent}12,${T.accent}04)`,border:`1px solid ${T.accent}30`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
+          <div>
+            <h2 style={{fontSize:20,fontWeight:800,color:T.text,marginBottom:4}}>📓 Daily Journal</h2>
+            <p style={{color:T.textMuted,fontSize:13}}>{new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+          </div>
+          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+            {[
+              {label:'Tasks',value:`${completedTasks}/${totalTasks}`,color:completedTasks===totalTasks?T.green:T.text},
+              {label:'Session',value:sessionStarted?formatTime(sessionTime):'Not started',color:sessionStarted?T.green:T.textMuted},
+              {label:"Today's P&L",value:`${todayPnl>=0?'+':''}$${todayPnl.toFixed(2)}`,color:todayPnl>=0?T.green:todayPnl<0?T.red:T.textMuted},
+              {label:'Streak',value:`${streak} days 🔥`,color:T.accent},
+            ].map(s=>(
+              <div key={s.label} style={{textAlign:'center',padding:'10px 16px',background:T.glassBg,borderRadius:10,border:`1px solid ${T.glassBorder}`}}>
+                <div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4}}>{s.label}</div>
+                <div style={{fontSize:16,fontWeight:700,color:s.color}}>{s.value}</div>
+              </div>
+            ))}
+            <button onClick={()=>setSessionStarted(!sessionStarted)} style={{padding:'10px 20px',borderRadius:10,border:`1px solid ${sessionStarted?T.red:T.accent}`,background:sessionStarted?T.redBg:T.accentDim,color:sessionStarted?T.red:T.accent,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+              {sessionStarted?'⏹ End Session':'▶ Start Session'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:20}}>
+
+        {/* Left - Journal + Notes */}
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+
+          {/* Tab switcher */}
+          <div style={{display:'flex',gap:0,background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:12,padding:4}}>
+            {[['premarket','🌅 Pre-Market'],['postmarket','🌇 Post-Market'],['diary','📅 Trade Diary']].map(([id,label])=>(
+              <button key={id} onClick={()=>setJournalTab(id)} style={{flex:1,padding:'9px 0',borderRadius:9,border:'none',background:journalTab===id?T.accent:'transparent',color:journalTab===id?'#000':T.textMuted,fontSize:13,fontWeight:journalTab===id?700:400,cursor:'pointer'}}>{label}</button>
+            ))}
+          </div>
+
+          {journalTab==='premarket'&&(
+            <div style={card}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:4}}>🌅 Pre-Market Notes</div>
+              <div style={{fontSize:12,color:T.textMuted,marginBottom:14}}>Plan your trades before the market opens. What are you watching? What is your plan?</div>
+              <textarea style={{...inp,height:180}} placeholder="Write your pre-market plan...&#10;&#10;- Key levels I'm watching:&#10;- Setups I'm looking for:&#10;- Max loss today: $300&#10;- News to watch:" value={preMarketNotes} onChange={e=>setPreMarketNotes(e.target.value)}/>
+              <div style={{display:'flex',justifyContent:'flex-end',marginTop:12}}>
+                <button onClick={handleSave} style={{padding:'9px 24px',borderRadius:8,border:'none',background:saved?T.green:T.accent,color:'#000',fontSize:13,fontWeight:700,cursor:'pointer'}}>{saved?'✓ Saved':'Save Notes'}</button>
+              </div>
+            </div>
+          )}
+
+          {journalTab==='postmarket'&&(
+            <div style={card}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:4}}>🌇 Post-Market Review</div>
+              <div style={{fontSize:12,color:T.textMuted,marginBottom:14}}>Review your session. What did you do well? What mistakes did you make? What did you learn?</div>
+              <textarea style={{...inp,height:180}} placeholder="Write your post-market review...&#10;&#10;- What went well today:&#10;- Mistakes I made:&#10;- What I learned:&#10;- Rules I followed/broke:" value={postMarketNotes} onChange={e=>setPostMarketNotes(e.target.value)}/>
+              <div style={{display:'flex',justifyContent:'flex-end',marginTop:12}}>
+                <button onClick={handleSave} style={{padding:'9px 24px',borderRadius:8,border:'none',background:saved?T.green:T.accent,color:'#000',fontSize:13,fontWeight:700,cursor:'pointer'}}>{saved?'✓ Saved':'Save Notes'}</button>
+              </div>
+            </div>
+          )}
+
+          {journalTab==='diary'&&(
+            <div style={card}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+                <div style={{fontSize:14,fontWeight:700,color:T.text}}>📅 Trade Diary — {selectedDate}</div>
+                <input style={{padding:'7px 12px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,color:T.text,fontSize:13}} type="date" value={selectedDate} onChange={e=>setSelectedDate(e.target.value)}/>
+              </div>
+              {todayTrades.length === 0 ? (
+                <div style={{textAlign:'center',padding:'40px 0',color:T.textMuted,fontSize:14}}>No trades on {selectedDate}</div>
+              ) : (
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  <div style={{display:'flex',gap:16,marginBottom:8}}>
+                    <div style={{flex:1,background:T.inputBg,borderRadius:10,padding:'12px 16px',textAlign:'center'}}>
+                      <div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',marginBottom:4}}>Trades</div>
+                      <div style={{fontSize:20,fontWeight:700,color:T.text}}>{todayTrades.length}</div>
+                    </div>
+                    <div style={{flex:1,background:T.inputBg,borderRadius:10,padding:'12px 16px',textAlign:'center'}}>
+                      <div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',marginBottom:4}}>Wins</div>
+                      <div style={{fontSize:20,fontWeight:700,color:T.green}}>{todayWins}</div>
+                    </div>
+                    <div style={{flex:1,background:T.inputBg,borderRadius:10,padding:'12px 16px',textAlign:'center'}}>
+                      <div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',marginBottom:4}}>Day P&L</div>
+                      <div style={{fontSize:20,fontWeight:700,color:todayPnl>=0?T.green:T.red}}>{todayPnl>=0?'+':''}${todayPnl.toFixed(2)}</div>
+                    </div>
+                  </div>
+                  {todayTrades.map(t=>(
+                    <div key={t.id} style={{background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:10,padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                        <span style={{fontSize:14,fontWeight:700,color:T.accent}}>{t.ticker}</span>
+                        {t.option_type&&<span style={{padding:'2px 7px',borderRadius:4,fontSize:10,fontWeight:700,background:t.option_type==='CALL'?T.greenBg:T.redBg,color:t.option_type==='CALL'?T.green:T.red}}>{t.option_type}</span>}
+                        <span style={{fontSize:12,color:T.textMuted}}>{t.entry_time||''}</span>
+                        {t.setup&&<span style={{fontSize:11,color:T.textMuted}}>{t.setup}</span>}
+                      </div>
+                      <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                        <span style={{padding:'2px 7px',borderRadius:4,fontSize:10,fontWeight:700,background:t.outcome==='WIN'?T.greenBg:t.outcome==='LOSS'?T.redBg:'rgba(107,114,128,0.12)',color:t.outcome==='WIN'?T.green:t.outcome==='LOSS'?T.red:T.textMuted}}>{t.outcome}</span>
+                        <span style={{fontSize:14,fontWeight:700,color:parseFloat(t.pnl)>=0?T.green:T.red}}>{parseFloat(t.pnl)>=0?'+':''}${parseFloat(t.pnl||0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Activity Heatmap */}
+          <div style={card}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text}}>📊 Trading Activity — Last 12 Weeks</div>
+              <div style={{display:'flex',gap:8,alignItems:'center',fontSize:11,color:T.textMuted}}>
+                <span style={{width:10,height:10,borderRadius:2,background:T.green,display:'inline-block'}}/> Profitable
+                <span style={{width:10,height:10,borderRadius:2,background:T.red,display:'inline-block',marginLeft:4}}/> Loss
+                <span style={{width:10,height:10,borderRadius:2,background:T.glassBorder,display:'inline-block',marginLeft:4}}/> No trade
+              </div>
+            </div>
+            <div style={{display:'flex',gap:2}}>
+              <div style={{display:'flex',flexDirection:'column',gap:2,marginRight:4}}>
+                {['S','M','T','W','T','F','S'].map((d,i)=>(
+                  <div key={i} style={{height:14,fontSize:9,color:T.textMuted,lineHeight:'14px'}}>{d}</div>
+                ))}
+              </div>
+              {heatmapData.map((week,wi)=>(
+                <div key={wi} style={{display:'flex',flexDirection:'column',gap:2}}>
+                  {week.map((day,di)=>{
+                    const hasActivity = day.trades > 0;
+                    const bg = !hasActivity ? T.inputBg : day.pnl > 0 ? `rgba(34,197,94,${Math.min(0.2+day.trades*0.15,0.9)})` : `rgba(239,68,68,${Math.min(0.2+day.trades*0.15,0.9)})`;
+                    return (
+                      <div key={di} title={`${day.date}: ${day.trades} trades, ${day.pnl>=0?'+':''}$${day.pnl.toFixed(0)}`} style={{width:14,height:14,borderRadius:3,background:bg,border:day.isToday?`1px solid ${T.accent}`:`1px solid transparent`,cursor:hasActivity?'pointer':'default',transition:'transform 0.1s'}}
+                        onMouseEnter={e=>e.currentTarget.style.transform='scale(1.3)'}
+                        onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+                        onClick={()=>{if(hasActivity){setSelectedDate(day.date);setJournalTab('diary');}}}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right - Task Checklist */}
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div style={card}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text}}>✅ Today's Tasks</div>
+              <div style={{fontSize:12,color:T.textMuted,background:T.inputBg,padding:'4px 10px',borderRadius:20,fontWeight:600}}>{completedTasks}/{totalTasks}</div>
+            </div>
+            <div style={{height:4,background:T.inputBg,borderRadius:2,marginBottom:16,overflow:'hidden'}}>
+              <div style={{height:'100%',width:`${(completedTasks/totalTasks)*100}%`,background:T.accent,borderRadius:2,transition:'width 0.3s'}}/>
+            </div>
+
+            {[['premarket','🌅 Pre-Market'],['session','⚡ Session'],['postmarket','🌇 Post-Market']].map(([section,label])=>(
+              <div key={section} style={{marginBottom:16}}>
+                <div style={{fontSize:11,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.07em',fontWeight:600,marginBottom:8,display:'flex',justifyContent:'space-between'}}>
+                  {label}
+                  <span>{DEFAULT_TASKS[section].filter((_,i)=>checkedTasks[`${section}-${i}`]).length}/{DEFAULT_TASKS[section].length}</span>
+                </div>
+                {DEFAULT_TASKS[section].map((task,i)=>{
+                  const key = `${section}-${i}`;
+                  const checked = !!checkedTasks[key];
+                  return (
+                    <div key={i} onClick={()=>toggleTask(section,i)} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'8px 10px',borderRadius:8,cursor:'pointer',marginBottom:4,background:checked?T.accentDim:'transparent',transition:'background 0.15s'}}
+                      onMouseEnter={e=>{if(!checked)e.currentTarget.style.background=T.inputBg;}}
+                      onMouseLeave={e=>{e.currentTarget.style.background=checked?T.accentDim:'transparent';}}>
+                      <div style={{width:18,height:18,borderRadius:5,border:`2px solid ${checked?T.accent:T.inputBorder}`,background:checked?T.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1,transition:'all 0.15s'}}>
+                        {checked&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <span style={{fontSize:13,color:checked?T.textMuted:T.text,textDecoration:checked?'line-through':'none',lineHeight:1.4,transition:'all 0.15s'}}>{task}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Session Stats */}
+          <div style={card}>
+            <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:14}}>📈 Session Stats</div>
+            {[
+              {label:'P&L',value:`${todayPnl>=0?'+':''}$${todayPnl.toFixed(2)}`,color:todayPnl>0?T.green:todayPnl<0?T.red:T.textMuted},
+              {label:'Trades',value:todayTrades.length,color:T.text},
+              {label:'Win Rate',value:todayTrades.length?`${Math.round(todayWins/todayTrades.length*100)}%`:'—',color:T.text},
+              {label:'Session Time',value:sessionStarted?formatTime(sessionTime):'—',color:T.accent},
+            ].map(s=>(
+              <div key={s.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:`1px solid ${T.glassBorder}`}}>
+                <span style={{fontSize:13,color:T.textMuted}}>{s.label}</span>
+                <span style={{fontSize:15,fontWeight:700,color:s.color}}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── POSITION CALCULATOR ───────────────────────────────────────────────────────
 function CalculatorTab({ T }) {
   const [mode, setMode] = useState('stocks');
@@ -1360,6 +1653,7 @@ export default function JournifiApp() {
     {id:'trades',icon:'📈',label:'Trades'},
     {id:'pnl',icon:'💰',label:'P&L'},
     {id:'strategies',icon:'🎯',label:'Strategies'},
+    {id:'journal',icon:'📓',label:'Daily Journal'},
     {id:'calculator',icon:'🧮',label:'Calculator'},
     {id:'pricing',icon:'💎',label:'Pricing'},
     {id:'about',icon:'✦',label:'About'},
@@ -1414,6 +1708,7 @@ export default function JournifiApp() {
           {tab==='pnl'&&<PnlTab trades={trades} T={T}/>}
           {tab==='strategies'&&<StrategiesTab trades={trades} strategies={strategies} T={T} session={session} onRefresh={()=>fetchAll(session.user.id)}/>}
           {tab==='calculator'&&<CalculatorTab T={T}/>}
+          {tab==='journal'&&<DailyJournalTab T={T} trades={trades} session={session}/>}
           {tab==='pricing'&&(
             <div style={{padding:'40px 0',maxWidth:1100,margin:'0 auto'}}>
               <div style={{textAlign:'center',marginBottom:40}}>
