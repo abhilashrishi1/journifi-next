@@ -749,6 +749,47 @@ function StrategiesTab({ trades, strategies, T, session, onRefresh }) {
   );
 }
 
+// ── SUPPORT TAB ───────────────────────────────────────────────────────────────
+function SupportTab({ T }) {
+  const [openFaq, setOpenFaq] = useState(null);
+  const faqs = [
+    ['How do I log a trade?','Click "+ Add Trade" on the Trades tab. Select your asset type first — options, stocks, forex, futures, or crypto. Fields change based on what you pick. P&L calculates automatically.'],
+    ['What asset types are supported?','Options, Stocks, Forex, Futures, and Crypto. All can be logged manually. IBKR auto-sync coming soon.'],
+    ['How do strategies work?','Go to Strategies tab. Create a strategy with your custom rules. Tag trades to it and see the P&L impact of following vs breaking your rules.'],
+    ['How do I delete a trade?','Click the 🗑 delete button on the right side of any trade row. You will be asked to confirm.'],
+    ['Is my data private?','Yes. All data is encrypted via Supabase and never shared or sold.'],
+    ['How do I cancel?','Email support@journifi.app. Stripe billing management coming soon.'],
+  ];
+  return (
+    <div style={{maxWidth:700,margin:'0 auto',padding:'40px 0'}}>
+      <div style={{textAlign:'center',marginBottom:40}}>
+        <h1 style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:12}}>Support Center</h1>
+        <p style={{color:T.textMuted,fontSize:16}}>Find answers or reach out — we respond within 24 hours.</p>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:32}}>
+        {[{icon:'✉️',title:'Email',desc:'support@journifi.app',sub:'24hr response'},{icon:'💬',title:'Discord',desc:'Community (coming soon)',sub:'Chat with traders'}].map(c=>(
+          <div key={c.title} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'20px',textAlign:'center'}}>
+            <div style={{fontSize:28,marginBottom:10}}>{c.icon}</div>
+            <div style={{fontWeight:700,color:T.text,fontSize:15,marginBottom:4}}>{c.title}</div>
+            <div style={{color:T.accent,fontSize:13,marginBottom:4}}>{c.desc}</div>
+            <div style={{color:T.textMuted,fontSize:12}}>{c.sub}</div>
+          </div>
+        ))}
+      </div>
+      <h2 style={{fontSize:18,fontWeight:700,color:T.text,marginBottom:16}}>Common Questions</h2>
+      {faqs.map(([q,a],i)=>(
+        <div key={i} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${openFaq===i?T.accent+'44':T.glassBorder}`,borderRadius:12,marginBottom:8,overflow:'hidden'}}>
+          <button onClick={()=>setOpenFaq(openFaq===i?null:i)} style={{width:'100%',padding:'16px 20px',background:'transparent',border:'none',color:T.text,fontSize:14,fontWeight:600,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
+            {q}
+            <span style={{color:T.accent,fontSize:18,transform:openFaq===i?'rotate(45deg)':'none',transition:'transform 0.2s',flexShrink:0,marginLeft:12}}>+</span>
+          </button>
+          {openFaq===i&&<div style={{padding:'0 20px 16px',color:T.textMuted,fontSize:14,lineHeight:1.7}}>{a}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── LANDING PAGE ──────────────────────────────────────────────────────────────
 function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
   const [scrolled,setScrolled]=useState(false);
@@ -1130,35 +1171,7 @@ export default function JournifiApp() {
               </div>
             </div>
           )}
-          {tab==='support'&&(
-            <div style={{maxWidth:700,margin:'0 auto',padding:'40px 0'}}>
-              <div style={{textAlign:'center',marginBottom:40}}>
-                <h1 style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:12}}>Support Center</h1>
-                <p style={{color:T.textMuted,fontSize:16}}>Find answers or reach out — we respond within 24 hours.</p>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:32}}>
-                {[{icon:'✉️',title:'Email',desc:'support@journifi.app',sub:'24hr response'},{icon:'💬',title:'Discord',desc:'Community (coming soon)',sub:'Chat with traders'}].map(c=>(
-                  <div key={c.title} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'20px',textAlign:'center'}}>
-                    <div style={{fontSize:28,marginBottom:10}}>{c.icon}</div>
-                    <div style={{fontWeight:700,color:T.text,fontSize:15,marginBottom:4}}>{c.title}</div>
-                    <div style={{color:T.accent,fontSize:13,marginBottom:4}}>{c.desc}</div>
-                    <div style={{color:T.textMuted,fontSize:12}}>{c.sub}</div>
-                  </div>
-                ))}
-              </div>
-              {[['How do I log a trade?','Click "+ Add Trade" on the Trades tab. Select your asset type first — options, stocks, forex, futures, or crypto. Fields change based on what you pick. P&L calculates automatically.'],['What asset types are supported?','Options, Stocks, Forex, Futures, and Crypto. All can be logged manually. IBKR auto-sync coming soon.'],['How do strategies work?','Go to Strategies tab. Create a strategy with your custom rules. Tag trades to it and see the P&L impact of following vs breaking your rules.'],['How do I delete a trade?','Click the 🗑 delete button on the right side of any trade row. You will be asked to confirm.'],["Is my data private?",'Yes. All data is encrypted via Supabase and never shared or sold.'],['How do I cancel?','Email support@journifi.app. Stripe billing management coming soon.']].map(([q,a],i)=>{
-                const[open,setOpen]=useState(false);
-                return(
-                  <div key={q} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${open?T.accent+'44':T.glassBorder}`,borderRadius:12,marginBottom:8,overflow:'hidden'}}>
-                    <button onClick={()=>setOpen(!open)} style={{width:'100%',padding:'16px 20px',background:'transparent',border:'none',color:T.text,fontSize:14,fontWeight:600,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
-                      {q}<span style={{color:T.accent,fontSize:18,transform:open?'rotate(45deg)':'none',transition:'transform 0.2s',flexShrink:0,marginLeft:12}}>+</span>
-                    </button>
-                    {open&&<div style={{padding:'0 20px 16px',color:T.textMuted,fontSize:14,lineHeight:1.7}}>{a}</div>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {tab==='support'&&<SupportTab T={T}/>}
         </main>
       </div>
 
