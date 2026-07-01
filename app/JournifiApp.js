@@ -449,7 +449,7 @@ function DashboardTab({ trades, strategies, T, onAddTrade }) {
   let streak=0,streakType='';
   for(const t of trades){if(streak===0){streakType=t.outcome;streak=1;}else if(t.outcome===streakType)streak++;else break;}
 
-  const card={background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:20};
+  const card={background:T.glassBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:20,boxShadow:T.cardShadow};
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:20}}>
@@ -602,7 +602,7 @@ function TradesTab({ trades, T, strategies, onAddTrade, onNoTrade, onDelete }) {
             <p style={{color:T.textMuted,fontSize:13}}>Click "+ Add Trade" to log your first trade</p>
           </div>
         ):(
-          <div style={{overflowX:'auto',background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14}}>
+          <div style={{overflowX:'auto',background:T.glassBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,boxShadow:T.cardShadow}}>
             <table style={{width:'100%',borderCollapse:'collapse',minWidth:700}}>
               <thead>
                 <tr style={{borderBottom:`1px solid ${T.glassBorder}`}}>
@@ -641,7 +641,7 @@ function TradesTab({ trades, T, strategies, onAddTrade, onNoTrade, onDelete }) {
 
       {/* News Panel */}
       {showNews&&(
-        <div style={{width:300,flexShrink:0,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:16,maxHeight:'80vh',overflowY:'auto'}}>
+        <div style={{width:300,flexShrink:0,background:T.glassBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:16,maxHeight:'80vh',overflowY:'auto'}}>
           <NewsPanel T={T} tickers={uniqueTickers}/>
         </div>
       )}
@@ -661,7 +661,7 @@ function PnlTab({ trades, T }) {
   const totalPnl=trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
   const bestTrade=trades.reduce((b,t)=>parseFloat(t.pnl||0)>parseFloat(b?.pnl||0)?t:b,null);
   const worstTrade=trades.reduce((w,t)=>parseFloat(t.pnl||0)<parseFloat(w?.pnl||0)?t:w,null);
-  const card={background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:20};
+  const card={background:T.glassBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:20,boxShadow:T.cardShadow};
   return (
     <div style={{display:'flex',flexDirection:'column',gap:20}}>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12}}>
@@ -697,7 +697,7 @@ function StrategiesTab({ trades, strategies, T, session, onRefresh }) {
     const wr=arr=>arr.length?Math.round(arr.filter(t=>t.outcome==='WIN').length/arr.length*100):0;
     return[{label:'✅ All Rules Followed',trades:followed.length,winRate:wr(followed),pnl:pnl(followed).toFixed(2),color:T.green},{label:'⚠️ Some Rules Followed',trades:some.length,winRate:wr(some),pnl:pnl(some).toFixed(2),color:'#f59e0b'},{label:'❌ Rules Ignored',trades:none.length,winRate:wr(none),pnl:pnl(none).toFixed(2),color:T.red}];
   },[trades,T]);
-  const card={background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:20};
+  const card={background:T.glassBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:20,boxShadow:T.cardShadow};
   return (
     <div>
       {showModal&&<StrategyModal T={T} session={session} existing={editing} onClose={()=>{setShowModal(false);setEditing(null);}} onSaved={onRefresh}/>}
@@ -749,6 +749,282 @@ function StrategiesTab({ trades, strategies, T, session, onRefresh }) {
   );
 }
 
+// ── POSITION CALCULATOR ───────────────────────────────────────────────────────
+function CalculatorTab({ T }) {
+  const [mode, setMode] = useState('stocks');
+
+  // Stocks calculator
+  const [stockPrice, setStockPrice] = useState('');
+  const [shares, setShares] = useState('');
+  const [positionSize, setPositionSize] = useState('');
+  const [stopLoss, setStopLoss] = useState('');
+  const [target, setTarget] = useState('');
+  const [riskAmount, setRiskAmount] = useState('');
+
+  // Options calculator
+  const [optionPremium, setOptionPremium] = useState('');
+  const [optionContracts, setOptionContracts] = useState('');
+  const [optionCost, setOptionCost] = useState('');
+  const [optionStrike, setOptionStrike] = useState('');
+  const [optionStop, setOptionStop] = useState('');
+  const [optionTarget, setOptionTarget] = useState('');
+  const [optionType, setOptionType] = useState('CALL');
+  const [underlyingPrice, setUnderlyingPrice] = useState('');
+
+  // Stock calculations
+  const calcStocks = useMemo(() => {
+    const sp = parseFloat(stockPrice), sh = parseFloat(shares), ps = parseFloat(positionSize);
+    const sl = parseFloat(stopLoss), tgt = parseFloat(target), risk = parseFloat(riskAmount);
+    const results = {};
+
+    if (sp && sh) results.positionSize = (sp * sh).toFixed(2);
+    if (sp && ps) results.shares = Math.floor(ps / sp);
+    if (sh && ps) results.stockPrice = (ps / sh).toFixed(2);
+
+    if (sp && sl && sh) {
+      results.riskPerShare = Math.abs(sp - sl).toFixed(2);
+      results.totalRisk = (Math.abs(sp - sl) * (sh || results.shares || 0)).toFixed(2);
+    }
+    if (sp && tgt && sh) {
+      results.rewardPerShare = Math.abs(tgt - sp).toFixed(2);
+      results.totalReward = (Math.abs(tgt - sp) * (sh || 0)).toFixed(2);
+    }
+    if (sp && sl && tgt) {
+      const r = Math.abs(sp - sl);
+      const rwd = Math.abs(tgt - sp);
+      results.rrRatio = r > 0 ? (rwd / r).toFixed(2) : '—';
+    }
+    if (risk && sp && sl) {
+      results.sharesFromRisk = Math.floor(risk / Math.abs(sp - sl));
+      results.positionFromRisk = (results.sharesFromRisk * sp).toFixed(2);
+    }
+
+    return results;
+  }, [stockPrice, shares, positionSize, stopLoss, target, riskAmount]);
+
+  // Options calculations
+  const calcOptions = useMemo(() => {
+    const p = parseFloat(optionPremium), c = parseFloat(optionContracts), cost = parseFloat(optionCost);
+    const sl = parseFloat(optionStop), tgt = parseFloat(optionTarget);
+    const results = {};
+
+    if (p && c) results.totalCost = (p * c * 100).toFixed(2);
+    if (p && cost) results.contracts = Math.floor(cost / (p * 100));
+    if (c && cost) results.premium = (cost / (c * 100)).toFixed(2);
+
+    if (p && sl) {
+      results.stopLoss = (sl * c * 100).toFixed(2);
+      results.riskAmount = ((p - sl) * c * 100).toFixed(2);
+    }
+    if (p && tgt) {
+      results.targetPnl = ((tgt - p) * (c || 1) * 100).toFixed(2);
+    }
+    if (p && sl && tgt) {
+      const r = Math.abs(p - sl);
+      const rwd = Math.abs(tgt - p);
+      results.rrRatio = r > 0 ? (rwd / r).toFixed(2) : '—';
+    }
+    // Break even
+    if (optionStrike && p && optionType) {
+      if (optionType === 'CALL') results.breakeven = (parseFloat(optionStrike) + parseFloat(p)).toFixed(2);
+      else results.breakeven = (parseFloat(optionStrike) - parseFloat(p)).toFixed(2);
+    }
+    // ITM/OTM
+    if (underlyingPrice && optionStrike) {
+      const diff = parseFloat(underlyingPrice) - parseFloat(optionStrike);
+      if (optionType === 'CALL') {
+        results.moneyness = diff > 0 ? `ITM by $${diff.toFixed(2)}` : diff < 0 ? `OTM by $${Math.abs(diff).toFixed(2)}` : 'ATM';
+        results.moneynessColor = diff > 0 ? '#22c55e' : diff < 0 ? '#ef4444' : '#f59e0b';
+      } else {
+        results.moneyness = diff < 0 ? `ITM by $${Math.abs(diff).toFixed(2)}` : diff > 0 ? `OTM by $${diff.toFixed(2)}` : 'ATM';
+        results.moneynessColor = diff < 0 ? '#22c55e' : diff > 0 ? '#ef4444' : '#f59e0b';
+      }
+    }
+
+    return results;
+  }, [optionPremium, optionContracts, optionCost, optionStop, optionTarget, optionStrike, optionType, underlyingPrice]);
+
+  const inp = { padding:'10px 14px', background:T.inputBg, border:`1px solid ${T.inputBorder}`, borderRadius:10, color:T.text, fontSize:14, outline:'none', width:'100%', fontFamily:'inherit' };
+  const lbl = { display:'block', fontSize:11, color:T.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, marginBottom:6 };
+  const card = { background:T.glassBg, backdropFilter:'blur(24px)', border:`1px solid ${T.glassBorder}`, borderRadius:16, padding:24, boxShadow:T.cardShadow };
+  const resultRow = (label, value, color) => value ? (
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:`1px solid ${T.glassBorder}`}}>
+      <span style={{fontSize:13,color:T.textMuted}}>{label}</span>
+      <span style={{fontSize:15,fontWeight:700,color:color||T.accent,fontVariantNumeric:'tabular-nums'}}>{value}</span>
+    </div>
+  ) : null;
+
+  return (
+    <div style={{maxWidth:1000,margin:'0 auto'}}>
+      <div style={{marginBottom:24}}>
+        <h2 style={{fontSize:22,fontWeight:800,color:T.text,marginBottom:4}}>Position Calculator</h2>
+        <p style={{color:T.textMuted,fontSize:14}}>Calculate position size, risk, reward, and R:R ratio before you trade.</p>
+      </div>
+
+      {/* Mode toggle */}
+      <div style={{display:'flex',gap:0,background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:12,padding:4,marginBottom:24,width:'fit-content'}}>
+        {[['stocks','🏢 Stocks'],['options','📈 Options']].map(([id,label])=>(
+          <button key={id} onClick={()=>setMode(id)} style={{padding:'10px 28px',borderRadius:9,border:'none',background:mode===id?T.accent:'transparent',color:mode===id?'#000':T.textMuted,fontSize:14,fontWeight:mode===id?700:500,cursor:'pointer',transition:'all 0.15s'}}>{label}</button>
+        ))}
+      </div>
+
+      {mode==='stocks' && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+          {/* Left - Inputs */}
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+
+            {/* Position Size Calculator */}
+            <div style={card}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:16}}>📐 Position Size</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={lbl}>Stock Price ($)</label><input style={inp} type="number" step="0.01" placeholder="185.00" value={stockPrice} onChange={e=>setStockPrice(e.target.value)}/></div>
+                <div><label style={lbl}>Shares</label><input style={inp} type="number" placeholder="100" value={shares} onChange={e=>setShares(e.target.value)}/></div>
+                <div style={{gridColumn:'1/-1'}}><label style={lbl}>Position Size ($)</label><input style={inp} type="number" step="0.01" placeholder="18,500" value={positionSize} onChange={e=>setPositionSize(e.target.value)}/></div>
+              </div>
+              <div style={{marginTop:16,padding:'12px 0',borderTop:`1px solid ${T.glassBorder}`}}>
+                {calcStocks.positionSize && resultRow('Total Position Value', `$${calcStocks.positionSize}`)}
+                {calcStocks.shares && !shares && resultRow('Shares to Buy', calcStocks.shares)}
+                {calcStocks.stockPrice && !stockPrice && resultRow('Stock Price', `$${calcStocks.stockPrice}`)}
+              </div>
+            </div>
+
+            {/* Risk from Account */}
+            <div style={card}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:16}}>💰 Risk from Account Size</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={lbl}>Risk Amount ($)</label><input style={inp} type="number" step="0.01" placeholder="300" value={riskAmount} onChange={e=>setRiskAmount(e.target.value)}/></div>
+                <div><label style={lbl}>Stop Loss ($)</label><input style={inp} type="number" step="0.01" placeholder="183.00" value={stopLoss} onChange={e=>setStopLoss(e.target.value)}/></div>
+              </div>
+              {calcStocks.sharesFromRisk && (
+                <div style={{marginTop:16,padding:'12px 0',borderTop:`1px solid ${T.glassBorder}`}}>
+                  {resultRow('Max Shares', calcStocks.sharesFromRisk)}
+                  {resultRow('Position Size', `$${calcStocks.positionFromRisk}`, T.accent)}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right - Risk/Reward */}
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div style={card}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:16}}>🎯 Risk / Reward Analysis</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={lbl}>Entry Price ($)</label><input style={inp} type="number" step="0.01" placeholder="185.00" value={stockPrice} onChange={e=>setStockPrice(e.target.value)}/></div>
+                <div><label style={lbl}>Shares</label><input style={inp} type="number" placeholder="100" value={shares} onChange={e=>setShares(e.target.value)}/></div>
+                <div><label style={lbl}>Stop Loss ($)</label><input style={inp} type="number" step="0.01" placeholder="183.00" value={stopLoss} onChange={e=>setStopLoss(e.target.value)}/></div>
+                <div><label style={lbl}>Target ($)</label><input style={inp} type="number" step="0.01" placeholder="190.00" value={target} onChange={e=>setTarget(e.target.value)}/></div>
+              </div>
+
+              <div style={{marginTop:16,padding:'12px 0',borderTop:`1px solid ${T.glassBorder}`}}>
+                {resultRow('Risk per Share', calcStocks.riskPerShare?`$${calcStocks.riskPerShare}`:null, T.red)}
+                {resultRow('Reward per Share', calcStocks.rewardPerShare?`$${calcStocks.rewardPerShare}`:null, T.green)}
+                {resultRow('Total Risk', calcStocks.totalRisk?`$${calcStocks.totalRisk}`:null, T.red)}
+                {resultRow('Total Reward', calcStocks.totalReward?`$${calcStocks.totalReward}`:null, T.green)}
+                {calcStocks.rrRatio && (
+                  <div style={{marginTop:16,background:parseFloat(calcStocks.rrRatio)>=2?T.greenBg:parseFloat(calcStocks.rrRatio)>=1?T.accentDim:T.redBg,border:`1px solid ${parseFloat(calcStocks.rrRatio)>=2?T.green:parseFloat(calcStocks.rrRatio)>=1?T.accent:T.red}44`,borderRadius:10,padding:'14px 16px',textAlign:'center'}}>
+                    <div style={{fontSize:11,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Risk / Reward Ratio</div>
+                    <div style={{fontSize:32,fontWeight:900,color:parseFloat(calcStocks.rrRatio)>=2?T.green:parseFloat(calcStocks.rrRatio)>=1?T.accent:T.red}}>1 : {calcStocks.rrRatio}</div>
+                    <div style={{fontSize:12,color:T.textMuted,marginTop:4}}>{parseFloat(calcStocks.rrRatio)>=3?'🔥 Excellent':parseFloat(calcStocks.rrRatio)>=2?'✅ Good':parseFloat(calcStocks.rrRatio)>=1?'⚠️ Minimum':' ❌ Poor — Skip this trade'}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mode==='options' && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+          {/* Left */}
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+
+            {/* Options Cost Calculator */}
+            <div style={card}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:16}}>📐 Options Cost Calculator</div>
+              <div style={{display:'flex',gap:0,background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:8,padding:3,marginBottom:14,width:'fit-content'}}>
+                {['CALL','PUT'].map(t=>(
+                  <button key={t} onClick={()=>setOptionType(t)} style={{padding:'6px 20px',borderRadius:6,border:'none',background:optionType===t?(t==='CALL'?T.green:T.red):'transparent',color:optionType===t?'#000':T.textMuted,fontSize:13,fontWeight:optionType===t?700:400,cursor:'pointer'}}>{t}</button>
+                ))}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={lbl}>Premium ($)</label><input style={inp} type="number" step="0.01" placeholder="1.50" value={optionPremium} onChange={e=>setOptionPremium(e.target.value)}/></div>
+                <div><label style={lbl}>Contracts</label><input style={inp} type="number" placeholder="2" value={optionContracts} onChange={e=>setOptionContracts(e.target.value)}/></div>
+                <div style={{gridColumn:'1/-1'}}><label style={lbl}>Max Budget ($)</label><input style={inp} type="number" step="0.01" placeholder="500" value={optionCost} onChange={e=>setOptionCost(e.target.value)}/></div>
+              </div>
+              <div style={{marginTop:16,padding:'12px 0',borderTop:`1px solid ${T.glassBorder}`}}>
+                {calcOptions.totalCost && resultRow('Total Cost', `$${calcOptions.totalCost}`, T.accent)}
+                {calcOptions.contracts && !optionContracts && resultRow('Max Contracts', calcOptions.contracts)}
+                {calcOptions.premium && !optionPremium && resultRow('Premium', `$${calcOptions.premium}`)}
+              </div>
+            </div>
+
+            {/* Break Even */}
+            <div style={card}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:16}}>📍 Break Even & Moneyness</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={lbl}>Strike Price ($)</label><input style={inp} type="number" step="0.01" placeholder="500" value={optionStrike} onChange={e=>setOptionStrike(e.target.value)}/></div>
+                <div><label style={lbl}>Underlying Price ($)</label><input style={inp} type="number" step="0.01" placeholder="498" value={underlyingPrice} onChange={e=>setUnderlyingPrice(e.target.value)}/></div>
+              </div>
+              <div style={{marginTop:16,padding:'12px 0',borderTop:`1px solid ${T.glassBorder}`}}>
+                {calcOptions.breakeven && resultRow('Break Even Price', `$${calcOptions.breakeven}`, T.accent)}
+                {calcOptions.moneyness && (
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0'}}>
+                    <span style={{fontSize:13,color:T.textMuted}}>Moneyness</span>
+                    <span style={{fontSize:14,fontWeight:700,color:calcOptions.moneynessColor}}>{calcOptions.moneyness}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right - Options R:R */}
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div style={card}>
+              <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:16}}>🎯 Options Risk / Reward</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div><label style={lbl}>Entry Premium ($)</label><input style={inp} type="number" step="0.01" placeholder="1.50" value={optionPremium} onChange={e=>setOptionPremium(e.target.value)}/></div>
+                <div><label style={lbl}>Contracts</label><input style={inp} type="number" placeholder="2" value={optionContracts} onChange={e=>setOptionContracts(e.target.value)}/></div>
+                <div><label style={lbl}>Stop (Exit at $)</label><input style={inp} type="number" step="0.01" placeholder="0.75" value={optionStop} onChange={e=>setOptionStop(e.target.value)}/></div>
+                <div><label style={lbl}>Target (Exit at $)</label><input style={inp} type="number" step="0.01" placeholder="3.00" value={optionTarget} onChange={e=>setOptionTarget(e.target.value)}/></div>
+              </div>
+
+              <div style={{marginTop:16,padding:'12px 0',borderTop:`1px solid ${T.glassBorder}`}}>
+                {resultRow('Max Cost', calcOptions.totalCost?`$${calcOptions.totalCost}`:null, T.accent)}
+                {resultRow('Risk (Stop hit)', calcOptions.riskAmount?`$${calcOptions.riskAmount}`:null, T.red)}
+                {resultRow('Target P&L', calcOptions.targetPnl?`+$${calcOptions.targetPnl}`:null, T.green)}
+                {calcOptions.rrRatio && (
+                  <div style={{marginTop:16,background:parseFloat(calcOptions.rrRatio)>=2?T.greenBg:parseFloat(calcOptions.rrRatio)>=1?T.accentDim:T.redBg,border:`1px solid ${parseFloat(calcOptions.rrRatio)>=2?T.green:parseFloat(calcOptions.rrRatio)>=1?T.accent:T.red}44`,borderRadius:10,padding:'14px 16px',textAlign:'center'}}>
+                    <div style={{fontSize:11,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Risk / Reward Ratio</div>
+                    <div style={{fontSize:32,fontWeight:900,color:parseFloat(calcOptions.rrRatio)>=2?T.green:parseFloat(calcOptions.rrRatio)>=1?T.accent:T.red}}>1 : {calcOptions.rrRatio}</div>
+                    <div style={{fontSize:12,color:T.textMuted,marginTop:4}}>{parseFloat(calcOptions.rrRatio)>=3?'🔥 Excellent':parseFloat(calcOptions.rrRatio)>=2?'✅ Good':parseFloat(calcOptions.rrRatio)>=1?'⚠️ Minimum':'❌ Poor — Skip this trade'}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick reference */}
+            <div style={{...card,background:T.accentDim,border:`1px solid ${T.accent}33`}}>
+              <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:12}}>⚡ Quick Reference</div>
+              {[
+                ['Options Cost Formula', 'Premium × Contracts × 100'],
+                ['Break Even (Call)', 'Strike + Premium'],
+                ['Break Even (Put)', 'Strike − Premium'],
+                ['Min R:R Target', '1:2 (risking $1 to make $2)'],
+                ['Your Rule', '1:3 minimum, 1:5 ideal'],
+              ].map(([label,val])=>(
+                <div key={label} style={{display:'flex',justifyContent:'space-between',gap:12,marginBottom:8}}>
+                  <span style={{fontSize:12,color:T.textMuted}}>{label}</span>
+                  <span style={{fontSize:12,color:T.text,fontWeight:600,textAlign:'right'}}>{val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── SUPPORT TAB ───────────────────────────────────────────────────────────────
 function SupportTab({ T }) {
   const [openFaq, setOpenFaq] = useState(null);
@@ -768,7 +1044,7 @@ function SupportTab({ T }) {
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:32}}>
         {[{icon:'✉️',title:'Email',desc:'support@journifi.app',sub:'24hr response'},{icon:'💬',title:'Discord',desc:'Community (coming soon)',sub:'Chat with traders'}].map(c=>(
-          <div key={c.title} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'20px',textAlign:'center'}}>
+          <div key={c.title} style={{background:T.glassBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:'20px',textAlign:'center'}}>
             <div style={{fontSize:28,marginBottom:10}}>{c.icon}</div>
             <div style={{fontWeight:700,color:T.text,fontSize:15,marginBottom:4}}>{c.title}</div>
             <div style={{color:T.accent,fontSize:13,marginBottom:4}}>{c.desc}</div>
@@ -1031,24 +1307,27 @@ export default function JournifiApp() {
 
   const d=darkMode;
   const T={
-    pageBg:d?'linear-gradient(135deg,#0a0c14 0%,#0d1117 50%,#0a0e1a 100%)':'linear-gradient(135deg,#e8edf5 0%,#f0f4fa 50%,#e4eaf3 100%)',
-    glassBg:d?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.65)',
-    glassBorder:d?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.08)',
-    headerBg:d?'rgba(10,12,20,0.9)':'rgba(255,255,255,0.9)',
-    inputBg:d?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.04)',
-    inputBorder:d?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.12)',
-    modalBg:d?'rgba(13,15,24,0.97)':'rgba(255,255,255,0.97)',
-    tableBorder:d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.05)',
-    sidebarBg:d?'rgba(10,12,20,0.95)':'rgba(255,255,255,0.95)',
+    pageBg:d?'linear-gradient(135deg,#060810 0%,#0a0d16 50%,#080c14 100%)':'linear-gradient(135deg,#dde4f0 0%,#eaf0f9 50%,#dfe8f4 100%)',
+    glassBg:d?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.72)',
+    glassBorder:d?'rgba(255,255,255,0.09)':'rgba(0,0,0,0.07)',
+    cardShadow:d?'0 4px 24px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06)':'0 4px 24px rgba(0,0,0,0.06),inset 0 1px 0 rgba(255,255,255,0.9)',
+    headerBg:d?'rgba(6,8,16,0.88)':'rgba(255,255,255,0.88)',
+    inputBg:d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)',
+    inputBorder:d?'rgba(255,255,255,0.09)':'rgba(0,0,0,0.1)',
+    modalBg:d?'rgba(8,10,18,0.97)':'rgba(255,255,255,0.97)',
+    tableBorder:d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)',
+    sidebarBg:d?'rgba(6,8,16,0.94)':'rgba(248,250,255,0.94)',
+    sidebarBorder:d?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.07)',
     text:d?'#e8edf5':'#0d1117',
-    textMuted:d?'#6b7280':'#6b7280',
+    textMuted:d?'#5a6478':'#6b7280',
     textFaint:d?'#2d3748':'#e2e8f0',
     accent:'#00C4B4',
     accentDim:d?'rgba(0,196,180,0.1)':'rgba(0,196,180,0.08)',
     green:'#22c55e',greenBg:d?'rgba(34,197,94,0.12)':'rgba(34,197,94,0.1)',
     red:'#ef4444',redBg:d?'rgba(239,68,68,0.12)':'rgba(239,68,68,0.1)',
-    orb1:d?'rgba(0,196,180,0.07)':'rgba(0,196,180,0.09)',
-    orb2:d?'rgba(99,102,241,0.05)':'rgba(99,102,241,0.07)',
+    orb1:d?'rgba(0,196,180,0.09)':'rgba(0,196,180,0.12)',
+    orb2:d?'rgba(99,102,241,0.07)':'rgba(99,102,241,0.09)',
+    orb3:d?'rgba(168,85,247,0.05)':'rgba(168,85,247,0.07)',
   };
 
   const css=`
@@ -1062,7 +1341,8 @@ export default function JournifiApp() {
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
     @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-8px);}}
     .trow:hover td{background:${d?'rgba(255,255,255,0.02)':'rgba(0,0,0,0.02)'};}
-    .sidebar-item:hover{background:${d?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.05)'}!important;}
+    .sidebar-item:hover{background:${d?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'}!important;}
+    .glass-hover:hover{box-shadow:0 0 0 1px ${T.accent}44, 0 8px 32px rgba(0,196,180,0.1) !important;transform:translateY(-1px);transition:all 0.2s;}
   `;
 
   if(loading) return(
@@ -1080,6 +1360,7 @@ export default function JournifiApp() {
     {id:'trades',icon:'📈',label:'Trades'},
     {id:'pnl',icon:'💰',label:'P&L'},
     {id:'strategies',icon:'🎯',label:'Strategies'},
+    {id:'calculator',icon:'🧮',label:'Calculator'},
     {id:'pricing',icon:'💎',label:'Pricing'},
     {id:'about',icon:'✦',label:'About'},
     {id:'support',icon:'💬',label:'Support'},
@@ -1088,11 +1369,12 @@ export default function JournifiApp() {
   return (
     <><style>{css}</style>
     <div style={{display:'flex',minHeight:'100vh',background:T.pageBg,color:T.text,fontFamily:"'IBM Plex Sans',system-ui,sans-serif",position:'relative'}}>
-      <div style={{position:'fixed',width:800,height:800,borderRadius:'50%',background:T.orb1,filter:'blur(100px)',top:-200,right:-200,pointerEvents:'none',zIndex:0}}/>
+      <div style={{position:'fixed',width:800,height:800,borderRadius:'50%',background:T.orb1,filter:'blur(120px)',top:-200,right:-200,pointerEvents:'none',zIndex:0}}/>
       <div style={{position:'fixed',width:500,height:500,borderRadius:'50%',background:T.orb2,filter:'blur(100px)',bottom:-100,left:-100,pointerEvents:'none',zIndex:0}}/>
+      <div style={{position:'fixed',width:400,height:400,borderRadius:'50%',background:T.orb3,filter:'blur(100px)',top:'45%',left:'35%',pointerEvents:'none',zIndex:0}}/>
 
       {/* LEFT SIDEBAR */}
-      <aside style={{width:220,flexShrink:0,background:T.sidebarBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderRight:`1px solid ${T.glassBorder}`,display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,bottom:0,zIndex:50}}>
+      <aside style={{width:220,flexShrink:0,background:T.sidebarBg,backdropFilter:'blur(32px)',WebkitBackdropFilter:'blur(32px)',borderRight:`1px solid ${T.sidebarBorder||T.glassBorder}`,boxShadow:'4px 0 32px rgba(0,0,0,0.3)',display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,bottom:0,zIndex:50}}>
         {/* Logo */}
         <div style={{padding:'20px 16px 16px',borderBottom:`1px solid ${T.glassBorder}`}}>
           <Logo light={!d} size="sm"/>
@@ -1131,6 +1413,7 @@ export default function JournifiApp() {
           {tab==='trades'&&<TradesTab trades={trades} T={T} strategies={strategies} onAddTrade={()=>setShowTradeModal(true)} onNoTrade={handleNoTrade} onDelete={handleDelete}/>}
           {tab==='pnl'&&<PnlTab trades={trades} T={T}/>}
           {tab==='strategies'&&<StrategiesTab trades={trades} strategies={strategies} T={T} session={session} onRefresh={()=>fetchAll(session.user.id)}/>}
+          {tab==='calculator'&&<CalculatorTab T={T}/>}
           {tab==='pricing'&&(
             <div style={{padding:'40px 0',maxWidth:1100,margin:'0 auto'}}>
               <div style={{textAlign:'center',marginBottom:40}}>
