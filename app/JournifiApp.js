@@ -1082,34 +1082,7 @@ export default function JournifiApp() {
 
       {/* MAIN CONTENT */}
       <div style={{flex:1,marginLeft:220,display:'flex',flexDirection:'column',position:'relative',zIndex:1}}>
-        {/* Top stats bar */}
-        <div style={{display:'flex',flexWrap:'wrap',borderBottom:`1px solid ${T.glassBorder}`,background:d?'rgba(10,12,20,0.7)':'rgba(255,255,255,0.6)',backdropFilter:'blur(20px)',position:'sticky',top:0,zIndex:10}}>
-          {(()=>{
-            const totalPnl=trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
-            const wins=trades.filter(t=>t.outcome==='WIN').length;
-            const losses=trades.filter(t=>t.outcome==='LOSS').length;
-            const winRate=trades.length?Math.round(wins/trades.length*100):0;
-            const avgWin=wins?trades.filter(t=>t.outcome==='WIN').reduce((s,t)=>s+parseFloat(t.pnl||0),0)/wins:0;
-            const avgLoss=losses?trades.filter(t=>t.outcome==='LOSS').reduce((s,t)=>s+parseFloat(t.pnl||0),0)/losses:0;
-            let streak=0,streakType='';
-            for(const t of trades){if(streak===0){streakType=t.outcome;streak=1;}else if(t.outcome===streakType)streak++;else break;}
-            return[
-              {label:'Total P&L',value:`${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}`,color:totalPnl>=0?T.green:T.red},
-              {label:'Win Rate',value:`${winRate}%`,color:T.text},
-              {label:'Trades',value:trades.length,color:T.text},
-              {label:'Wins',value:wins,color:T.green},
-              {label:'Losses',value:losses,color:T.red},
-              {label:'Avg Win',value:`+$${avgWin.toFixed(2)}`,color:T.green},
-              {label:'Avg Loss',value:`$${avgLoss.toFixed(2)}`,color:T.red},
-              {label:'Streak',value:`${streak} ${streakType==='WIN'?'W 🔥':streakType==='LOSS'?'L':''}`,color:streakType==='WIN'?T.green:streakType==='LOSS'?T.red:T.text},
-            ].map(stat=>(
-              <div key={stat.label} style={{flex:'1 1 90px',padding:'10px 14px',borderRight:`1px solid ${T.glassBorder}`}}>
-                <div style={{fontSize:9,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>{stat.label}</div>
-                <div style={{fontSize:16,fontWeight:700,color:stat.color,fontVariantNumeric:'tabular-nums'}}>{stat.value}</div>
-              </div>
-            ));
-          })()}
-        </div>
+
 
         {/* Page content */}
         <main style={{padding:'24px',flex:1}}>
