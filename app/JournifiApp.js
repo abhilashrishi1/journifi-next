@@ -427,7 +427,7 @@ function StrategyModal({ T, session, onClose, onSaved, existing }) {
 }
 
 // ── DASHBOARD (Overview) ──────────────────────────────────────────────────────
-function DashboardTab({ trades, strategies, T, onAddTrade }) {
+function DashboardTab({ trades, strategies, T, d, onAddTrade }) {
   const totalPnl=trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
   const wins=trades.filter(t=>t.outcome==='WIN').length;
   const losses=trades.filter(t=>t.outcome==='LOSS').length;
@@ -1791,7 +1791,7 @@ export default function JournifiApp() {
 
         {/* Page content */}
         <main style={{padding:'24px',flex:1}}>
-          {tab==='dashboard'&&<DashboardTab trades={trades} strategies={strategies} T={T} onAddTrade={()=>setShowTradeModal(true)}/>}
+          {tab==='dashboard'&&<DashboardTab trades={trades} strategies={strategies} T={T} d={d} onAddTrade={()=>setShowTradeModal(true)}/>}
           {tab==='trades'&&<TradesTab trades={trades} T={T} strategies={strategies} onAddTrade={()=>setShowTradeModal(true)} onNoTrade={handleNoTrade} onDelete={handleDelete}/>}
           {tab==='pnl'&&<PnlTab trades={trades} T={T}/>}
           {tab==='strategies'&&<StrategiesTab trades={trades} strategies={strategies} T={T} session={session} onRefresh={()=>fetchAll(session.user.id)}/>}
