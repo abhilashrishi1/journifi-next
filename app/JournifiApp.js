@@ -486,10 +486,74 @@ function DashboardTab({ trades, strategies, T, onAddTrade }) {
         ))}
       </div>
 
+      {/* Trading Edge + R-Multiple */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+        {/* Trading Edge */}
+        <div style={{...card,background:d?'linear-gradient(135deg,rgba(0,196,180,0.08),rgba(0,196,180,0.02))':'linear-gradient(135deg,rgba(0,196,180,0.06),rgba(255,255,255,0.8))',border:`1px solid ${T.accent}33`}}>
+          <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:4}}>⚡ Trading Edge</div>
+          <div style={{fontSize:11,color:T.textMuted,marginBottom:16}}>Performance Metrics</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            {[
+              {label:'Win Rate',value:`${winRate}%`,sub:`${wins}W · ${losses}L`,color:winRate>=60?T.green:winRate>=50?T.gold:T.red},
+              {label:'Profit Factor',value:losses>0?((trades.filter(t=>t.outcome==='WIN').reduce((s,t)=>s+Math.abs(parseFloat(t.pnl||0)),0))/(trades.filter(t=>t.outcome==='LOSS').reduce((s,t)=>s+Math.abs(parseFloat(t.pnl||0)),1)||1)).toFixed(2):'∞',sub:'Win $ / Loss $',color:T.purple},
+              {label:'Avg Win',value:`+$${avgWin.toFixed(2)}`,sub:'Per winning trade',color:T.green},
+              {label:'Avg Loss',value:`$${avgLoss.toFixed(2)}`,sub:'Per losing trade',color:T.red},
+              {label:'Best Trade',value:`+$${parseFloat(bestTrade?.pnl||0).toFixed(2)}`,sub:bestTrade?.ticker||'—',color:T.green},
+              {label:'Worst Trade',value:`-$${Math.abs(parseFloat(worstTrade?.pnl||0)).toFixed(2)}`,sub:worstTrade?.ticker||'—',color:T.red},
+            ].map(m=>(
+              <div key={m.label} style={{background:T.glassBg,backdropFilter:'blur(10px)',border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'12px 14px'}}>
+                <div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:5}}>{m.label}</div>
+                <div style={{fontSize:18,fontWeight:800,color:m.color,fontVariantNumeric:'tabular-nums'}}>{m.value}</div>
+                <div style={{fontSize:10,color:T.textMuted,marginTop:3}}>{m.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* R-Multiple Analysis */}
+        <div style={{...card,background:d?'linear-gradient(135deg,rgba(139,92,246,0.08),rgba(139,92,246,0.02))':'linear-gradient(135deg,rgba(139,92,246,0.06),rgba(255,255,255,0.8))',border:`1px solid ${T.purple}33`}}>
+          <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:4}}>🎯 R-Multiple Analysis</div>
+          <div style={{fontSize:11,color:T.textMuted,marginBottom:16}}>Risk Management Metrics</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            {(()=>{
+              const winTrades = trades.filter(t=>t.outcome==='WIN'&&t.pnl);
+              const lossTrades = trades.filter(t=>t.outcome==='LOSS'&&t.pnl);
+              const avgWinAmt = winTrades.length?winTrades.reduce((s,t)=>s+parseFloat(t.pnl||0),0)/winTrades.length:0;
+              const avgLossAmt = lossTrades.length?Math.abs(lossTrades.reduce((s,t)=>s+parseFloat(t.pnl||0),0)/lossTrades.length):0;
+              const rMultiple = avgLossAmt>0?(avgWinAmt/avgLossAmt).toFixed(2):'—';
+              const expectancy = trades.length?((winRate/100)*avgWinAmt - ((100-winRate)/100)*avgLossAmt).toFixed(2):'—';
+              const maxWin = winTrades.length?Math.max(...winTrades.map(t=>parseFloat(t.pnl||0))):0;
+              const maxLoss = lossTrades.length?Math.abs(Math.min(...lossTrades.map(t=>parseFloat(t.pnl||0)))):0;
+              return [
+                {label:'R-Multiple',value:rMultiple==='—'?'—':`${rMultiple}R`,sub:'Avg win / Avg loss',color:parseFloat(rMultiple)>=2?T.green:parseFloat(rMultiple)>=1?T.gold:T.red},
+                {label:'Expectancy',value:expectancy==='—'?'—':`$${expectancy}`,sub:'Per trade expected',color:parseFloat(expectancy)>0?T.green:T.red},
+                {label:'Largest Win',value:`+$${maxWin.toFixed(2)}`,sub:'Single best trade',color:T.green},
+                {label:'Largest Loss',value:`-$${maxLoss.toFixed(2)}`,sub:'Single worst trade',color:T.red},
+                {label:'Total Commissions',value:`$${trades.reduce((s,t)=>s+(parseFloat(t.commission)||0),0).toFixed(2)}`,sub:'Trading costs',color:T.gold},
+                {label:'Net P&L',value:`${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}`,sub:'After commissions',color:totalPnl>=0?T.green:T.red},
+              ].map(m=>(
+                <div key={m.label} style={{background:T.glassBg,backdropFilter:'blur(10px)',border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'12px 14px'}}>
+                  <div style={{fontSize:10,color:T.textMuted,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:5}}>{m.label}</div>
+                  <div style={{fontSize:18,fontWeight:800,color:m.color,fontVariantNumeric:'tabular-nums'}}>{m.value}</div>
+                  <div style={{fontSize:10,color:T.textMuted,marginTop:3}}>{m.sub}</div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+      </div>
+
       {/* Equity curve + Recent trades */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
         <div style={card}>
-          <div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:12}}>Equity Curve</div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div style={{fontSize:13,fontWeight:600,color:T.text}}>Equity Curve</div>
+            <div style={{display:'flex',gap:4}}>
+              {[['1W','this_week'],['1M','this_month'],['3M','last3m'],['ALL','all']].map(([label,range])=>(
+                <button key={label} style={{padding:'3px 8px',borderRadius:5,border:`1px solid ${T.glassBorder}`,background:T.glassBg,color:T.textMuted,fontSize:10,cursor:'pointer',fontWeight:500}}>{label}</button>
+              ))}
+            </div>
+          </div>
           <MiniLineChart data={equityCurve} color={totalPnl>=0?T.green:T.red} height={80}/>
           <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
             <span style={{fontSize:10,color:T.textMuted}}>Start</span>
@@ -1562,6 +1626,7 @@ export default function JournifiApp() {
   const [trades,setTrades]=useState([]);
   const [strategies,setStrategies]=useState([]);
   const [showTradeModal,setShowTradeModal]=useState(false);
+  const [sidebarOpen,setSidebarOpen]=useState(true);
   const [darkMode,setDarkMode]=useState(true);
   const [tab,setTab]=useState('dashboard');
   const [view,setView]=useState('landing');
@@ -1600,42 +1665,60 @@ export default function JournifiApp() {
 
   const d=darkMode;
   const T={
-    pageBg:d?'linear-gradient(135deg,#060810 0%,#0a0d16 50%,#080c14 100%)':'linear-gradient(135deg,#dde4f0 0%,#eaf0f9 50%,#dfe8f4 100%)',
-    glassBg:d?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.72)',
-    glassBorder:d?'rgba(255,255,255,0.09)':'rgba(0,0,0,0.07)',
-    cardShadow:d?'0 4px 24px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06)':'0 4px 24px rgba(0,0,0,0.06),inset 0 1px 0 rgba(255,255,255,0.9)',
-    headerBg:d?'rgba(6,8,16,0.88)':'rgba(255,255,255,0.88)',
+    // Backgrounds - deep luxury dark
+    pageBg:d?'linear-gradient(135deg,#05070f 0%,#080b15 40%,#060910 70%,#0a0614 100%)':'linear-gradient(135deg,#e8edf8 0%,#f2f6ff 50%,#eaeef8 100%)',
+    glassBg:d?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.75)',
+    glassBgStrong:d?'rgba(255,255,255,0.07)':'rgba(255,255,255,0.9)',
+    glassBorder:d?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)',
+    glassBorderStrong:d?'rgba(255,255,255,0.14)':'rgba(0,0,0,0.12)',
+    cardShadow:d?'0 8px 32px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.07)':'0 4px 24px rgba(0,0,0,0.07),inset 0 1px 0 rgba(255,255,255,1)',
+    cardShadowHover:d?'0 12px 40px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.1)':'0 8px 32px rgba(0,0,0,0.1)',
+    headerBg:d?'rgba(5,7,15,0.9)':'rgba(255,255,255,0.9)',
     inputBg:d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)',
-    inputBorder:d?'rgba(255,255,255,0.09)':'rgba(0,0,0,0.1)',
-    modalBg:d?'rgba(8,10,18,0.97)':'rgba(255,255,255,0.97)',
+    inputBorder:d?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.1)',
+    modalBg:d?'rgba(6,8,16,0.98)':'rgba(255,255,255,0.98)',
     tableBorder:d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)',
-    sidebarBg:d?'rgba(6,8,16,0.94)':'rgba(248,250,255,0.94)',
-    sidebarBorder:d?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.07)',
-    text:d?'#e8edf5':'#0d1117',
-    textMuted:d?'#5a6478':'#6b7280',
-    textFaint:d?'#2d3748':'#e2e8f0',
+    sidebarBg:d?'rgba(4,6,12,0.96)':'rgba(250,252,255,0.96)',
+    sidebarBorder:d?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)',
+    // Text
+    text:d?'#eef1f8':'#0d1117',
+    textMuted:d?'#5a6478':'#64748b',
+    textFaint:d?'#252d3d':'#e2e8f0',
+    // Accent - teal stays as brand
     accent:'#00C4B4',
+    accentLight:'#00ddd0',
     accentDim:d?'rgba(0,196,180,0.1)':'rgba(0,196,180,0.08)',
+    accentGlow:d?'0 0 24px rgba(0,196,180,0.3)':'0 0 16px rgba(0,196,180,0.15)',
+    // Gold accent for premium feel
+    gold:'#f59e0b',
+    goldDim:d?'rgba(245,158,11,0.12)':'rgba(245,158,11,0.08)',
+    // Purple accent
+    purple:'#8b5cf6',
+    purpleDim:d?'rgba(139,92,246,0.12)':'rgba(139,92,246,0.08)',
+    // Status colors
     green:'#22c55e',greenBg:d?'rgba(34,197,94,0.12)':'rgba(34,197,94,0.1)',
     red:'#ef4444',redBg:d?'rgba(239,68,68,0.12)':'rgba(239,68,68,0.1)',
-    orb1:d?'rgba(0,196,180,0.09)':'rgba(0,196,180,0.12)',
-    orb2:d?'rgba(99,102,241,0.07)':'rgba(99,102,241,0.09)',
-    orb3:d?'rgba(168,85,247,0.05)':'rgba(168,85,247,0.07)',
+    // Ambient orbs
+    orb1:d?'rgba(0,196,180,0.08)':'rgba(0,196,180,0.1)',
+    orb2:d?'rgba(139,92,246,0.06)':'rgba(139,92,246,0.08)',
+    orb3:d?'rgba(245,158,11,0.04)':'rgba(245,158,11,0.06)',
   };
 
   const css=`
     *{box-sizing:border-box;margin:0;padding:0;}body{margin:0;}
-    ::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${T.textFaint};border-radius:2px;}
+    ::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${T.accent}55;border-radius:2px;}
+    ::-webkit-scrollbar-thumb:hover{background:${T.accent};}
     input[type=date]::-webkit-calendar-picker-indicator{filter:${d?'invert(1)':'none'};opacity:.4;}
     input[type=time]::-webkit-calendar-picker-indicator{filter:${d?'invert(1)':'none'};opacity:.4;}
-    select option{background:${d?'#0d1117':'#fff'};color:${T.text};}
+    select option{background:${d?'#080b15':'#fff'};color:${T.text};}
     @keyframes spin{to{transform:rotate(360deg);}}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
     @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-8px);}}
-    .trow:hover td{background:${d?'rgba(255,255,255,0.02)':'rgba(0,0,0,0.02)'};}
-    .sidebar-item:hover{background:${d?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'}!important;}
-    .glass-hover:hover{box-shadow:0 0 0 1px ${T.accent}44, 0 8px 32px rgba(0,196,180,0.1) !important;transform:translateY(-1px);transition:all 0.2s;}
+    .trow:hover td{background:${d?'rgba(0,196,180,0.03)':'rgba(0,196,180,0.02)'}!important;}
+    .sidebar-item:hover{background:${d?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'}!important;}
+    button{font-family:inherit;}
+    input,textarea,select{font-family:inherit;}
   `;
 
   if(loading) return(
@@ -1665,40 +1748,45 @@ export default function JournifiApp() {
     <div style={{display:'flex',minHeight:'100vh',background:T.pageBg,color:T.text,fontFamily:"'IBM Plex Sans',system-ui,sans-serif",position:'relative'}}>
       <div style={{position:'fixed',width:800,height:800,borderRadius:'50%',background:T.orb1,filter:'blur(120px)',top:-200,right:-200,pointerEvents:'none',zIndex:0}}/>
       <div style={{position:'fixed',width:500,height:500,borderRadius:'50%',background:T.orb2,filter:'blur(100px)',bottom:-100,left:-100,pointerEvents:'none',zIndex:0}}/>
-      <div style={{position:'fixed',width:400,height:400,borderRadius:'50%',background:T.orb3,filter:'blur(100px)',top:'45%',left:'35%',pointerEvents:'none',zIndex:0}}/>
+      <div style={{position:'fixed',width:400,height:400,borderRadius:'50%',background:T.orb3,filter:'blur(120px)',top:'60%',left:'40%',pointerEvents:'none',zIndex:0}}/>
 
       {/* LEFT SIDEBAR */}
-      <aside style={{width:220,flexShrink:0,background:T.sidebarBg,backdropFilter:'blur(32px)',WebkitBackdropFilter:'blur(32px)',borderRight:`1px solid ${T.sidebarBorder||T.glassBorder}`,boxShadow:'4px 0 32px rgba(0,0,0,0.3)',display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,bottom:0,zIndex:50}}>
-        {/* Logo */}
-        <div style={{padding:'20px 16px 16px',borderBottom:`1px solid ${T.glassBorder}`}}>
-          <Logo light={!d} size="sm"/>
-          <p style={{fontSize:10,color:T.textMuted,marginTop:6,letterSpacing:'0.04em'}}>Your financial journey, logged.</p>
+      <aside style={{width:sidebarOpen?220:64,flexShrink:0,background:T.sidebarBg,backdropFilter:'blur(32px)',WebkitBackdropFilter:'blur(32px)',borderRight:`1px solid ${T.sidebarBorder}`,display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,bottom:0,zIndex:50,boxShadow:'4px 0 40px rgba(0,0,0,0.4)',transition:'width 0.25s ease'}}>
+        {/* Logo + collapse */}
+        <div style={{padding:'14px 10px',borderBottom:`1px solid ${T.glassBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:60}}>
+          {sidebarOpen&&<Logo light={!d} size="sm"/>}
+          {!sidebarOpen&&<span style={{fontSize:18,margin:'0 auto'}}>J</span>}
+          <button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:7,padding:'4px 7px',cursor:'pointer',color:T.textMuted,fontSize:11,flexShrink:0,marginLeft:sidebarOpen?6:0,lineHeight:1}}>
+            {sidebarOpen?'‹':'›'}
+          </button>
         </div>
 
         {/* Nav */}
-        <nav style={{flex:1,padding:'12px 8px',display:'flex',flexDirection:'column',gap:2,overflowY:'auto'}}>
+        <nav style={{flex:1,padding:'8px 6px',display:'flex',flexDirection:'column',gap:2,overflowY:'auto',overflowX:'hidden'}}>
           {TABS.map(t=>(
-            <button key={t.id} className="sidebar-item" onClick={()=>setTab(t.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:10,border:'none',background:tab===t.id?T.accent:T.glassBg,color:tab===t.id?'#000':T.textMuted,fontSize:14,fontWeight:tab===t.id?700:400,cursor:'pointer',textAlign:'left',transition:'all 0.15s',width:'100%'}}>
-              <span style={{fontSize:16}}>{t.icon}</span>
-              {t.label}
+            <button key={t.id} className="sidebar-item" onClick={()=>setTab(t.id)} title={!sidebarOpen?t.label:''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:sidebarOpen?'9px 12px':'9px 0',borderRadius:10,border:'none',background:tab===t.id?T.accent:'transparent',color:tab===t.id?'#000':T.textMuted,fontSize:13,fontWeight:tab===t.id?700:400,cursor:'pointer',textAlign:'left',transition:'all 0.15s',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
+              <span style={{fontSize:15,flexShrink:0}}>{t.icon}</span>
+              {sidebarOpen&&<span style={{overflow:'hidden',textOverflow:'ellipsis'}}>{t.label}</span>}
             </button>
           ))}
         </nav>
 
         {/* Bottom */}
-        <div style={{padding:'12px 8px',borderTop:`1px solid ${T.glassBorder}`,display:'flex',flexDirection:'column',gap:8}}>
-          <button onClick={()=>setDarkMode(!d)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:10,border:'none',background:T.glassBg,color:T.textMuted,fontSize:13,cursor:'pointer',textAlign:'left',width:'100%'}}>
-            <span>{d?'☀️':'🌙'}</span>{d?'Light Mode':'Dark Mode'}
+        <div style={{padding:'8px 6px',borderTop:`1px solid ${T.glassBorder}`,display:'flex',flexDirection:'column',gap:2}}>
+          <button onClick={()=>setDarkMode(!d)} title={!sidebarOpen?(d?'Light Mode':'Dark Mode'):''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:'8px 12px',borderRadius:10,border:'none',background:'transparent',color:T.textMuted,fontSize:13,cursor:'pointer',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
+            <span style={{flexShrink:0}}>{d?'☀️':'🌙'}</span>
+            {sidebarOpen&&(d?'Light Mode':'Dark Mode')}
           </button>
-          <div style={{padding:'8px 12px',fontSize:11,color:T.textMuted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{session?.user?.email}</div>
-          <button onClick={handleLogout} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:10,border:`1px solid ${T.glassBorder}`,background:'transparent',color:T.textMuted,fontSize:13,cursor:'pointer',textAlign:'left',width:'100%'}}>
-            <span>🚪</span>Sign Out
+          {sidebarOpen&&<div style={{padding:'4px 12px',fontSize:10,color:T.textMuted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{session?.user?.email}</div>}
+          <button onClick={handleLogout} title={!sidebarOpen?'Sign Out':''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:'8px 12px',borderRadius:10,border:'none',background:'transparent',color:T.red,fontSize:13,cursor:'pointer',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
+            <span style={{flexShrink:0}}>🚪</span>
+            {sidebarOpen&&'Sign Out'}
           </button>
         </div>
       </aside>
 
       {/* MAIN CONTENT */}
-      <div style={{flex:1,marginLeft:220,display:'flex',flexDirection:'column',position:'relative',zIndex:1}}>
+      <div style={{flex:1,marginLeft:sidebarOpen?220:64,display:'flex',flexDirection:'column',position:'relative',zIndex:1,transition:'margin-left 0.25s ease'}}>
 
 
         {/* Page content */}
