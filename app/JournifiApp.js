@@ -1387,4 +1387,487 @@ function SupportTab({ T }) {
   const [openFaq, setOpenFaq] = useState(null);
   const faqs = [
     ['How do I log a trade?','Click "+ Add Trade" on the Trades tab. Select your asset type first — options, stocks, forex, futures, or crypto. Fields change based on what you pick. P&L calculates automatically.'],
-    ['What asset types are supported?','Options, Stocks, Forex, Futu
+    ['What asset types are supported?','Options, Stocks, Forex, Futures, and Crypto. All can be logged manually. IBKR auto-sync coming soon.'],
+    ['How do strategies work?','Go to Strategies tab. Create a strategy with your custom rules. Tag trades to it and see the P&L impact of following vs breaking your rules.'],
+    ['How do I delete a trade?','Click the 🗑 delete button on the right side of any trade row. You will be asked to confirm.'],
+    ['Is my data private?','Yes. All data is encrypted via Supabase and never shared or sold.'],
+    ['How do I cancel?','Email support@journifi.app. Stripe billing management coming soon.'],
+  ];
+  return (
+    <div style={{maxWidth:700,margin:'0 auto',padding:'40px 0'}}>
+      <div style={{textAlign:'center',marginBottom:40}}>
+        <h1 style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:12}}>Support Center</h1>
+        <p style={{color:T.textMuted,fontSize:16}}>Find answers or reach out — we respond within 24 hours.</p>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:32}}>
+        {[{icon:'✉️',title:'Email',desc:'support@journifi.app',sub:'24hr response'},{icon:'💬',title:'Discord',desc:'Community (coming soon)',sub:'Chat with traders'}].map(c=>(
+          <div key={c.title} style={{background:T.glassBg,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:'20px',textAlign:'center'}}>
+            <div style={{fontSize:28,marginBottom:10}}>{c.icon}</div>
+            <div style={{fontWeight:700,color:T.text,fontSize:15,marginBottom:4}}>{c.title}</div>
+            <div style={{color:T.accent,fontSize:13,marginBottom:4}}>{c.desc}</div>
+            <div style={{color:T.textMuted,fontSize:12}}>{c.sub}</div>
+          </div>
+        ))}
+      </div>
+      <h2 style={{fontSize:18,fontWeight:700,color:T.text,marginBottom:16}}>Common Questions</h2>
+      {faqs.map(([q,a],i)=>(
+        <div key={i} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${openFaq===i?T.accent+'44':T.glassBorder}`,borderRadius:12,marginBottom:8,overflow:'hidden'}}>
+          <button onClick={()=>setOpenFaq(openFaq===i?null:i)} style={{width:'100%',padding:'16px 20px',background:'transparent',border:'none',color:T.text,fontSize:14,fontWeight:600,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
+            {q}
+            <span style={{color:T.accent,fontSize:18,transform:openFaq===i?'rotate(45deg)':'none',transition:'transform 0.2s',flexShrink:0,marginLeft:12}}>+</span>
+          </button>
+          {openFaq===i&&<div style={{padding:'0 20px 16px',color:T.textMuted,fontSize:14,lineHeight:1.7}}>{a}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── LANDING PAGE ──────────────────────────────────────────────────────────────
+function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
+  const [scrolled,setScrolled]=useState(false);
+  useEffect(()=>{const fn=()=>setScrolled(window.scrollY>40);window.addEventListener('scroll',fn);return()=>window.removeEventListener('scroll',fn);},[]);
+  const features=[
+    {icon:'📸',title:'Chart Screenshot Upload',desc:'Attach your chart to every trade. No more going back to TradingView a month later.'},
+    {icon:'📋',title:'Strategy Rule Tracking',desc:'Define your own rules. See P&L when you follow them vs when you break them.'},
+    {icon:'📊',title:'Deep Analytics',desc:'Win rate by day, time, ticker, setup. Understand your edge with real data.'},
+    {icon:'🤖',title:'AI Trade Coaching',desc:'AI reads your chart, identifies your setup, and reviews your session. Coming soon.'},
+    {icon:'🔄',title:'IBKR Auto-Sync',desc:'Connect once. Every fill logged automatically. No manual entry needed.'},
+    {icon:'📰',title:'News Feed',desc:'See what catalyst was in play. Tag news-driven vs technical setups.'},
+    {icon:'🏆',title:'Monthly Challenge',desc:'Compete with other traders. Best win rate wins a free month.'},
+    {icon:'🎓',title:'Learning Hub',desc:'Beginner to advanced. Stocks, options, futures, forex. Coming soon.'},
+  ];
+  const comingSoonFeatures=[
+    {icon:'🧠',title:'AI Pattern Finder',desc:"Discover the trading edge you didn't know you had. Our AI scans your winning trades to reveal hidden patterns in your setups, timing, and price action.",accent:T.purple,badge:'Premium Add-On'},
+    {icon:'🔁',title:'Trade Replay',desc:'Watch your trades unfold. Relive price action around your entries and exits to sharpen your timing.',accent:T.accent,badge:'Coming Soon'},
+    {icon:'📸',title:'Auto Screenshot Capture',desc:'Never miss a chart again. Journifi automatically pulls a snapshot of your setup the moment you log a trade.',accent:T.accent,badge:'Coming Soon'},
+    {icon:'🔗',title:'Broker Auto Sync',desc:'Connect your broker once, and every trade flows in automatically — no manual entry needed.',accent:T.gold,badge:'Coming Soon'},
+  ];
+  return (
+    <div style={{background:T.pageBg,color:T.text,fontFamily:"'IBM Plex Sans',system-ui,sans-serif",minHeight:'100vh',overflowX:'hidden'}}>
+      <nav style={{position:'fixed',top:0,left:0,right:0,zIndex:100,background:scrolled?T.headerBg:'transparent',backdropFilter:scrolled?'blur(24px)':'none',borderBottom:scrolled?`1px solid ${T.glassBorder}`:'none',transition:'all 0.3s',padding:'0 32px',height:64,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <Logo light={!d}/>
+        <div style={{display:'flex',gap:10,alignItems:'center'}}>
+          <button onClick={onToggleDark} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'7px 10px',cursor:'pointer',fontSize:14,color:T.textMuted,backdropFilter:'blur(10px)'}}>{d?'☀':'🌙'}</button>
+          <button onClick={onLogin} style={{background:'transparent',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:500,cursor:'pointer'}}>Log In</button>
+          <button onClick={onSignup} style={{background:T.accent,color:'#000',border:'none',borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:700,cursor:'pointer'}}>Get Started Free</button>
+        </div>
+      </nav>
+
+      <section style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'120px 24px 80px',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',width:700,height:700,borderRadius:'50%',background:T.orb1,filter:'blur(80px)',top:'-10%',left:'50%',transform:'translateX(-50%)',pointerEvents:'none'}}/>
+        <div style={{position:'absolute',width:500,height:500,borderRadius:'50%',background:T.orb2,filter:'blur(80px)',bottom:'5%',right:'-10%',pointerEvents:'none'}}/>
+        <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',opacity:d?0.03:0.04,pointerEvents:'none',userSelect:'none',fontSize:280,fontWeight:900,color:d?'#fff':'#000',letterSpacing:'-10px',fontFamily:"'IBM Plex Sans',system-ui,sans-serif"}}>J</div>
+        <div style={{display:'inline-flex',alignItems:'center',gap:8,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:30,padding:'7px 18px',fontSize:13,color:T.accent,fontWeight:600,marginBottom:32}}>
+          <span style={{width:6,height:6,borderRadius:'50%',background:T.accent,display:'inline-block',animation:'pulse 2s infinite'}}/>
+          Now live — built by a real trader
+        </div>
+        <div style={{marginBottom:24}}><Logo light={!d} size="lg"/></div>
+        <h1 style={{fontSize:'clamp(36px,6vw,72px)',fontWeight:900,letterSpacing:'-2px',lineHeight:1.1,marginBottom:20,maxWidth:800,color:T.text}}>Your Financial Journey,<br/><span style={{color:T.accent}}>Tracked & Analyzed.</span></h1>
+        <p style={{fontSize:'clamp(15px,2vw,20px)',color:T.textMuted,maxWidth:580,lineHeight:1.7,marginBottom:40}}>The only trading journal that tracks ALL your trades — stocks, options, forex, futures, crypto — analyzes your patterns, and holds you accountable to your own rules.</p>
+        <div style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',marginBottom:60}}>
+          <button onClick={onSignup} style={{background:T.accent,color:'#000',border:'none',borderRadius:14,padding:'16px 36px',fontSize:17,fontWeight:800,cursor:'pointer',boxShadow:`0 0 40px ${T.accent}44`}}>Start Free — No Credit Card</button>
+          <button onClick={onLogin} style={{background:T.glassBg,backdropFilter:'blur(20px)',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'16px 32px',fontSize:17,fontWeight:600,cursor:'pointer'}}>Sign In →</button>
+        </div>
+        <div style={{display:'flex',gap:0,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:20,overflow:'hidden',flexWrap:'wrap'}}>
+          {[{value:'All Markets',label:'Stocks · Options · Forex · Futures · Crypto'},{value:'Rules Tracking',label:'Follow your strategy. See the P&L difference.'},{value:'AI Coaching',label:'Coming soon — your personal trading coach'},{value:'$0',label:'To get started'}].map((s,i,arr)=>(
+            <div key={s.value} style={{padding:'18px 28px',borderRight:i<arr.length-1?`1px solid ${T.glassBorder}`:'none',textAlign:'center',minWidth:160}}>
+              <div style={{fontSize:18,fontWeight:800,color:T.accent}}>{s.value}</div>
+              <div style={{fontSize:11,color:T.textMuted,marginTop:4}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{position:'absolute',bottom:32,left:'50%',transform:'translateX(-50%)',opacity:0.4,animation:'bounce 2s infinite',textAlign:'center'}}>
+          <div style={{fontSize:11,color:T.textMuted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:4}}>Scroll</div>
+          <div style={{fontSize:18,color:T.textMuted}}>↓</div>
+        </div>
+      </section>
+
+      <section style={{padding:'80px 24px',maxWidth:1100,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:48}}>
+          <div style={{display:'inline-block',background:T.accentDim,border:`1px solid ${T.accent}33`,borderRadius:30,padding:'5px 16px',fontSize:12,color:T.accent,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:20}}>Everything You Need</div>
+          <h2 style={{fontSize:'clamp(28px,4vw,48px)',fontWeight:800,letterSpacing:'-1px',color:T.text}}>One platform. Every trading tool.</h2>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16}}>
+          {features.map((f,i)=>(
+            <div key={i}
+              style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:'24px 20px',transition:'all 0.25s',cursor:'default'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.border=`1px solid ${T.accent}66`;e.currentTarget.style.boxShadow=`0 0 30px ${T.accent}22`;}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.border=`1px solid ${T.glassBorder}`;e.currentTarget.style.boxShadow='none';}}>
+              <div style={{fontSize:28,marginBottom:12}}>{f.icon}</div>
+              <h3 style={{fontSize:15,fontWeight:700,color:T.text,marginBottom:8}}>{f.title}</h3>
+              <p style={{fontSize:13,color:T.textMuted,lineHeight:1.6}}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{padding:'80px 24px',maxWidth:1100,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:48}}>
+          <div style={{display:'inline-block',background:T.accentDim,border:`1px solid ${T.gold}44`,borderRadius:30,padding:'5px 16px',fontSize:12,color:T.gold,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:20}}>What&rsquo;s Next for Journifi</div>
+          <h2 style={{fontSize:'clamp(28px,4vw,48px)',fontWeight:800,letterSpacing:'-1px',color:T.text}}>Built by a trader. Built for what&rsquo;s coming.</h2>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16}}>
+          {comingSoonFeatures.map((f,i)=>(
+            <div key={i}
+              style={{position:'relative',background:`linear-gradient(135deg,${f.accent}12,${f.accent}03)`,backdropFilter:'blur(20px)',border:`1px solid ${f.accent}40`,borderRadius:16,padding:'24px 20px',transition:'all 0.25s',cursor:'default',overflow:'hidden'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.border=`1px solid ${f.accent}88`;e.currentTarget.style.boxShadow=`0 0 30px ${f.accent}22`;}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.border=`1px solid ${f.accent}40`;e.currentTarget.style.boxShadow='none';}}>
+              <div style={{position:'absolute',top:14,right:14,background:`${T.gold}22`,border:`1px solid ${T.gold}55`,color:T.gold,fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,textTransform:'uppercase',letterSpacing:'0.05em'}}>{f.badge}</div>
+              <div style={{fontSize:28,marginBottom:12}}>{f.icon}</div>
+              <h3 style={{fontSize:15,fontWeight:700,color:T.text,marginBottom:8,paddingRight:60}}>{f.title}</h3>
+              <p style={{fontSize:13,color:T.textMuted,lineHeight:1.6}}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{padding:'80px 24px',maxWidth:1000,margin:'0 auto'}}>
+        <div style={{background:`linear-gradient(135deg,${T.accent}10,${T.accent}05)`,border:`1px solid ${T.accent}30`,borderRadius:24,padding:'48px 40px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:40,alignItems:'center'}}>
+          <div>
+            <div style={{display:'inline-block',background:T.accentDim,border:`1px solid ${T.accent}33`,borderRadius:30,padding:'5px 16px',fontSize:12,color:T.accent,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:20}}>Signature Feature</div>
+            <h2 style={{fontSize:'clamp(24px,3vw,36px)',fontWeight:800,letterSpacing:'-1px',color:T.text,marginBottom:16,lineHeight:1.2}}>See what following your rules is worth — in dollars.</h2>
+            <p style={{color:T.textMuted,fontSize:15,lineHeight:1.8,marginBottom:24}}>Create your strategy. Define your rules. Journifi tracks whether you followed them and shows you the P&L difference.</p>
+            <button onClick={onSignup} style={{background:T.accent,color:'#000',border:'none',borderRadius:12,padding:'13px 28px',fontSize:15,fontWeight:700,cursor:'pointer'}}>Try It Free →</button>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            {[{label:'✅ All rules followed',trades:18,winRate:'78%',pnl:'+$1,840',color:T.green},{label:'⚠️ Some rules followed',trades:9,winRate:'44%',pnl:'-$210',color:'#f59e0b'},{label:'❌ Rules ignored',trades:6,winRate:'17%',pnl:'-$890',color:T.red}].map(row=>(
+              <div key={row.label} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:12,padding:'16px 18px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div><div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:4}}>{row.label}</div><div style={{fontSize:11,color:T.textMuted}}>{row.trades} trades · {row.winRate} win rate</div></div>
+                <div style={{fontSize:18,fontWeight:800,color:row.color}}>{row.pnl}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{padding:'80px 24px',maxWidth:1000,margin:'0 auto',textAlign:'center'}}>
+        <h2 style={{fontSize:'clamp(28px,4vw,48px)',fontWeight:800,letterSpacing:'-1px',marginBottom:12,color:T.text}}>Start free. Upgrade when ready.</h2>
+        <p style={{color:T.textMuted,fontSize:16,marginBottom:48}}>No credit card required. Cancel anytime.</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:16}}>
+          {[{name:'Free',price:'$0',color:'#6b7280',features:['10 trades','Manual entry','Basic stats']},{name:'Pro',price:'$29.99',color:T.accent,popular:true,features:['Unlimited trades','All asset types','IBKR sync','Analytics','Strategy tracking','Learning Hub']},{name:'Elite',price:'$49.99',color:'#a78bfa',features:['Everything in Pro','AI chart analysis','AI coaching','Pre-market briefing']}].map(plan=>(
+            <div key={plan.name}
+              style={{background:plan.popular?`linear-gradient(135deg,${T.accent}12,${T.accent}06)`:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`,borderRadius:20,padding:'28px 24px',position:'relative',transition:'all 0.25s'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow=`0 0 30px ${T.accent}22`;}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none';}}>
+              {plan.popular&&<div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:T.accent,color:'#000',fontSize:11,fontWeight:700,padding:'4px 14px',borderRadius:20,whiteSpace:'nowrap'}}>MOST POPULAR</div>}
+              <div style={{fontSize:12,fontWeight:700,color:plan.color,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>{plan.name}</div>
+              <div style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:20}}>{plan.price}<span style={{fontSize:14,fontWeight:400,color:T.textMuted}}>/mo</span></div>
+              {plan.features.map(f=>(<div key={f} style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}><span style={{color:T.green}}>✓</span><span style={{color:T.text,fontSize:13}}>{f}</span></div>))}
+              <button onClick={onSignup} style={{width:'100%',padding:'12px',background:plan.popular?T.accent:'transparent',color:plan.popular?'#000':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer',marginTop:20}}>Get Started</button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{padding:'100px 24px',textAlign:'center',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',width:600,height:600,borderRadius:'50%',background:T.orb1,filter:'blur(80px)',top:'50%',left:'50%',transform:'translate(-50%,-50%)',pointerEvents:'none'}}/>
+        <div style={{position:'relative',zIndex:1}}>
+          <h2 style={{fontSize:'clamp(32px,5vw,60px)',fontWeight:900,letterSpacing:'-2px',color:T.text,marginBottom:20,lineHeight:1.1}}>Start your journey today.</h2>
+          <p style={{color:T.textMuted,fontSize:16,marginBottom:40,maxWidth:500,margin:'0 auto 40px'}}>Join traders who are finally understanding their edge.</p>
+          <button onClick={onSignup} style={{background:T.accent,color:'#000',border:'none',borderRadius:16,padding:'18px 48px',fontSize:18,fontWeight:800,cursor:'pointer',boxShadow:`0 0 60px ${T.accent}44`}}>Get Started — Free</button>
+        </div>
+      </section>
+
+      <footer style={{borderTop:`1px solid ${T.glassBorder}`,padding:'32px 40px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16,background:T.glassBg,backdropFilter:'blur(20px)'}}>
+        <Logo light={!d}/>
+        <div style={{color:T.textMuted,fontSize:13}}>© 2026 Journifi · Your financial journey, logged.</div>
+        <div style={{display:'flex',gap:20}}>{['Privacy','Terms','Support'].map(l=>(<span key={l} style={{color:T.textMuted,fontSize:13,cursor:'pointer'}}>{l}</span>))}</div>
+      </footer>
+    </div>
+  );
+}
+
+// ── AUTH PAGE ─────────────────────────────────────────────────────────────────
+function AuthPage({ T, d, mode, onToggleDark, onBack }) {
+  const [email,setEmail]=useState('');
+  const [password,setPassword]=useState('');
+  const [authError,setAuthError]=useState('');
+  const [showPassword,setShowPassword]=useState(false);
+  const [showForgot,setShowForgot]=useState(false);
+  const [forgotEmail,setForgotEmail]=useState('');
+  const [forgotSent,setForgotSent]=useState(false);
+  const [forgotLoading,setForgotLoading]=useState(false);
+  async function handleGoogleLogin(){const sb=getSupabase();await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:'https://journifi-next.vercel.app'}});}
+  async function handleSubmit(e){e.preventDefault();setAuthError('');const sb=getSupabase();const{error}=await sb.auth.signInWithPassword({email,password});if(error)setAuthError(error.message);}
+  async function handleForgotPassword(e){e.preventDefault();setForgotLoading(true);setAuthError('');const sb=getSupabase();const{error}=await sb.auth.resetPasswordForEmail(forgotEmail,{redirectTo:'https://journifi-next.vercel.app'});setForgotLoading(false);if(error)setAuthError(error.message);else setForgotSent(true);}
+  const inp={padding:'11px 14px',background:T.inputBg,border:`1px solid ${T.inputBorder}`,borderRadius:10,color:T.text,fontSize:14,outline:'none',width:'100%'};
+  return (
+    <div style={{minHeight:'100vh',background:T.pageBg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,position:'relative',overflow:'hidden',fontFamily:"'IBM Plex Sans',system-ui,sans-serif"}}>
+      <div style={{position:'absolute',width:600,height:600,borderRadius:'50%',background:T.orb1,filter:'blur(80px)',top:-100,right:-100,pointerEvents:'none'}}/>
+      <div style={{position:'absolute',width:400,height:400,borderRadius:'50%',background:T.orb2,filter:'blur(80px)',bottom:-50,left:-50,pointerEvents:'none'}}/>
+      <div style={{position:'absolute',top:0,left:0,right:0,padding:'16px 24px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <button onClick={onBack} style={{background:'transparent',border:'none',color:T.textMuted,fontSize:14,cursor:'pointer'}}>← Back</button>
+        <button onClick={onToggleDark} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'6px 10px',cursor:'pointer',fontSize:14,color:T.textMuted}}>{d?'☀':'🌙'}</button>
+      </div>
+      <div style={{marginBottom:32,textAlign:'center'}}>
+        <Logo light={!d}/>
+        <p style={{color:T.textMuted,fontSize:13,marginTop:10}}>Your financial journey, logged.</p>
+      </div>
+      <div style={{width:'100%',maxWidth:400,background:T.glassBg,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:20,padding:'28px 24px'}}>
+        {showForgot?(
+          <div>
+            <button onClick={()=>{setShowForgot(false);setForgotSent(false);setAuthError('');}} style={{background:'transparent',border:'none',color:T.textMuted,fontSize:13,cursor:'pointer',marginBottom:16}}>← Back to login</button>
+            <h2 style={{fontSize:20,fontWeight:700,color:T.text,marginBottom:16,textAlign:'center'}}>Reset Password</h2>
+            {forgotSent?(<div style={{textAlign:'center',padding:'20px 0'}}><div style={{fontSize:40,marginBottom:12}}>✉️</div><p style={{color:T.green,fontWeight:600,fontSize:15,marginBottom:8}}>Check your inbox!</p><p style={{color:T.textMuted,fontSize:13,lineHeight:1.6}}>We sent a reset link to {forgotEmail}.</p></div>):(
+              <form onSubmit={handleForgotPassword} style={{display:'flex',flexDirection:'column',gap:12}}>
+                <p style={{color:T.textMuted,fontSize:13}}>Enter your email and we'll send a reset link.</p>
+                <input style={inp} type="email" placeholder="Your email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required/>
+                {authError&&<p style={{color:T.red,fontSize:13}}>{authError}</p>}
+                <button type="submit" style={{padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={forgotLoading}>{forgotLoading?'Sending...':'Send Reset Link'}</button>
+              </form>
+            )}
+          </div>
+        ):(
+          <>
+            <h2 style={{fontSize:20,fontWeight:700,color:T.text,marginBottom:20,textAlign:'center'}}>{mode==='login'?'Welcome back':'Create your account'}</h2>
+            <button onClick={handleGoogleLogin} style={{width:'100%',padding:'12px 16px',background:d?'rgba(255,255,255,0.92)':'#fff',color:'#111',border:'none',borderRadius:12,fontSize:15,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,marginBottom:18}}>
+              <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+              Continue with Google
+            </button>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:18}}><div style={{flex:1,height:1,background:T.glassBorder}}/><span style={{color:T.textMuted,fontSize:12}}>or</span><div style={{flex:1,height:1,background:T.glassBorder}}/></div>
+            <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:10}}>
+              <input style={inp} type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>
+              <div style={{position:'relative'}}>
+                <input style={{...inp,paddingRight:44}} type={showPassword?'text':'password'} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required/>
+                <button type="button" onClick={()=>setShowPassword(!showPassword)} style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'transparent',border:'none',cursor:'pointer',color:T.textMuted,padding:4,display:'flex',alignItems:'center'}}>
+                  {showPassword?<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>:<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                </button>
+              </div>
+              {authError&&<p style={{color:T.red,fontSize:13}}>{authError}</p>}
+              {mode==='login'&&<button type="button" onClick={()=>{setShowForgot(true);setForgotEmail(email);setAuthError('');}} style={{background:'transparent',border:'none',color:T.accent,fontSize:13,cursor:'pointer',textAlign:'right',padding:0}}>Forgot password?</button>}
+              <button type="submit" style={{padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:4}}>{mode==='login'?'Sign In':'Create Account'}</button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── ROOT APP ──────────────────────────────────────────────────────────────────
+export default function JournifiApp() {
+  const [session,setSession]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [trades,setTrades]=useState([]);
+  const [strategies,setStrategies]=useState([]);
+  const [showTradeModal,setShowTradeModal]=useState(false);
+  const [sidebarOpen,setSidebarOpen]=useState(true);
+  const [darkMode,setDarkMode]=useState(true);
+  const [tab,setTab]=useState('dashboard');
+  const [view,setView]=useState('landing');
+
+  useEffect(()=>{
+    const sb=getSupabase();if(!sb)return;
+    sb.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false);if(session){fetchAll(session.user.id);setView('app');}});
+    const{data:{subscription}}=sb.auth.onAuthStateChange((_e,session)=>{setSession(session);if(session){fetchAll(session.user.id);setView('app');}else setView('landing');});
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  async function fetchAll(userId){
+    const sb=getSupabase();
+    const[{data:t},{data:s}]=await Promise.all([
+      sb.from('trades').select('*').eq('user_id',userId).order('date',{ascending:false}),
+      sb.from('strategies').select('*').eq('user_id',userId).order('created_at',{ascending:false}),
+    ]);
+    if(t)setTrades(t);if(s)setStrategies(s);
+  }
+
+  async function handleNoTrade(){
+    const sb=getSupabase();
+    const today=new Date().toISOString().split('T')[0];
+    const{error}=await sb.from('trades').insert({user_id:session.user.id,date:today,asset_type:'options',ticker:'NO TRADE',direction:'LONG',pnl:0,outcome:'BREAKEVEN',notes:'Trading conditions did not meet criteria. Stayed out.',setup:'No setup — conditions not met'});
+    if(!error)fetchAll(session.user.id);
+  }
+
+  async function handleDelete(id){
+    if(!confirm('Delete this trade?'))return;
+    const sb=getSupabase();
+    await sb.from('trades').delete().eq('id',id);
+    fetchAll(session.user.id);
+  }
+
+  async function handleLogout(){const sb=getSupabase();await sb.auth.signOut();setSession(null);setTrades([]);setStrategies([]);setView('landing');}
+
+  const d=darkMode;
+  const T={
+    // Backgrounds - deep luxury dark
+    pageBg:d?'linear-gradient(135deg,#05070f 0%,#080b15 40%,#060910 70%,#0a0614 100%)':'linear-gradient(135deg,#e8edf8 0%,#f2f6ff 50%,#eaeef8 100%)',
+    glassBg:d?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.75)',
+    glassBgStrong:d?'rgba(255,255,255,0.07)':'rgba(255,255,255,0.9)',
+    glassBorder:d?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)',
+    glassBorderStrong:d?'rgba(255,255,255,0.14)':'rgba(0,0,0,0.12)',
+    cardShadow:d?'0 8px 32px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.07)':'0 4px 24px rgba(0,0,0,0.07),inset 0 1px 0 rgba(255,255,255,1)',
+    cardShadowHover:d?'0 12px 40px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.1)':'0 8px 32px rgba(0,0,0,0.1)',
+    headerBg:d?'rgba(5,7,15,0.9)':'rgba(255,255,255,0.9)',
+    inputBg:d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)',
+    inputBorder:d?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.1)',
+    modalBg:d?'rgba(6,8,16,0.98)':'rgba(255,255,255,0.98)',
+    tableBorder:d?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)',
+    sidebarBg:d?'rgba(4,6,12,0.96)':'rgba(250,252,255,0.96)',
+    sidebarBorder:d?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)',
+    // Text
+    text:d?'#eef1f8':'#0d1117',
+    textMuted:d?'#5a6478':'#64748b',
+    textFaint:d?'#252d3d':'#e2e8f0',
+    // Accent - teal stays as brand
+    accent:'#00C4B4',
+    accentLight:'#00ddd0',
+    accentDim:d?'rgba(0,196,180,0.1)':'rgba(0,196,180,0.08)',
+    accentGlow:d?'0 0 24px rgba(0,196,180,0.3)':'0 0 16px rgba(0,196,180,0.15)',
+    // Gold accent for premium feel
+    gold:'#f59e0b',
+    goldDim:d?'rgba(245,158,11,0.12)':'rgba(245,158,11,0.08)',
+    // Purple accent
+    purple:'#8b5cf6',
+    purpleDim:d?'rgba(139,92,246,0.12)':'rgba(139,92,246,0.08)',
+    // Status colors
+    green:'#22c55e',greenBg:d?'rgba(34,197,94,0.12)':'rgba(34,197,94,0.1)',
+    red:'#ef4444',redBg:d?'rgba(239,68,68,0.12)':'rgba(239,68,68,0.1)',
+    // Ambient orbs
+    orb1:d?'rgba(0,196,180,0.08)':'rgba(0,196,180,0.1)',
+    orb2:d?'rgba(139,92,246,0.06)':'rgba(139,92,246,0.08)',
+    orb3:d?'rgba(245,158,11,0.04)':'rgba(245,158,11,0.06)',
+  };
+
+  const css=`
+    *{box-sizing:border-box;margin:0;padding:0;}body{margin:0;}
+    ::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${T.accent}55;border-radius:2px;}
+    ::-webkit-scrollbar-thumb:hover{background:${T.accent};}
+    input[type=date]::-webkit-calendar-picker-indicator{filter:${d?'invert(1)':'none'};opacity:.4;}
+    input[type=time]::-webkit-calendar-picker-indicator{filter:${d?'invert(1)':'none'};opacity:.4;}
+    select option{background:${d?'#080b15':'#fff'};color:${T.text};}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+    @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-8px);}}
+    .trow:hover td{background:${d?'rgba(0,196,180,0.03)':'rgba(0,196,180,0.02)'}!important;}
+    .sidebar-item:hover{background:${d?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'}!important;}
+    button{font-family:inherit;}
+    input,textarea,select{font-family:inherit;}
+  `;
+
+  if(loading) return(
+    <><style>{css}</style>
+    <div style={{display:'flex',justifyContent:'center',alignItems:'center',minHeight:'100vh',background:T.pageBg}}>
+      <div style={{width:36,height:36,border:`3px solid ${T.textFaint}`,borderTop:`3px solid ${T.accent}`,borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+    </div></>
+  );
+
+  if(view==='landing') return <><style>{css}</style><LandingPage T={T} d={d} onLogin={()=>setView('login')} onSignup={()=>setView('signup')} onToggleDark={()=>setDarkMode(!d)}/></>;
+  if(view==='login'||view==='signup') return <><style>{css}</style><AuthPage T={T} d={d} mode={view} onToggleDark={()=>setDarkMode(!d)} onBack={()=>setView('landing')}/></>;
+
+  const TABS=[
+    {id:'dashboard',icon:'🏠',label:'Dashboard'},
+    {id:'trades',icon:'📈',label:'Trades'},
+    {id:'pnl',icon:'💰',label:'P&L'},
+    {id:'strategies',icon:'🎯',label:'Strategies'},
+    {id:'journal',icon:'📓',label:'Daily Journal'},
+    {id:'calculator',icon:'🧮',label:'Calculator'},
+    {id:'pricing',icon:'💎',label:'Pricing'},
+    {id:'about',icon:'✦',label:'About'},
+    {id:'support',icon:'💬',label:'Support'},
+  ];
+
+  return (
+    <><style>{css}</style>
+    <div style={{display:'flex',minHeight:'100vh',background:T.pageBg,color:T.text,fontFamily:"'IBM Plex Sans',system-ui,sans-serif",position:'relative'}}>
+      <div style={{position:'fixed',width:800,height:800,borderRadius:'50%',background:T.orb1,filter:'blur(120px)',top:-200,right:-200,pointerEvents:'none',zIndex:0}}/>
+      <div style={{position:'fixed',width:500,height:500,borderRadius:'50%',background:T.orb2,filter:'blur(100px)',bottom:-100,left:-100,pointerEvents:'none',zIndex:0}}/>
+      <div style={{position:'fixed',width:400,height:400,borderRadius:'50%',background:T.orb3,filter:'blur(120px)',top:'60%',left:'40%',pointerEvents:'none',zIndex:0}}/>
+
+      {/* LEFT SIDEBAR */}
+      <aside style={{width:sidebarOpen?220:64,flexShrink:0,background:T.sidebarBg,backdropFilter:'blur(32px)',WebkitBackdropFilter:'blur(32px)',borderRight:`1px solid ${T.sidebarBorder}`,display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,bottom:0,zIndex:50,boxShadow:'4px 0 40px rgba(0,0,0,0.4)',transition:'width 0.25s ease'}}>
+        {/* Logo + collapse */}
+        <div style={{padding:'14px 10px',borderBottom:`1px solid ${T.glassBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:60}}>
+          {sidebarOpen&&<Logo light={!d} size="sm"/>}
+          {!sidebarOpen&&<span style={{fontSize:18,margin:'0 auto'}}>J</span>}
+          <button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:7,padding:'4px 7px',cursor:'pointer',color:T.textMuted,fontSize:11,flexShrink:0,marginLeft:sidebarOpen?6:0,lineHeight:1}}>
+            {sidebarOpen?'‹':'›'}
+          </button>
+        </div>
+
+        {/* Nav */}
+        <nav style={{flex:1,padding:'8px 6px',display:'flex',flexDirection:'column',gap:2,overflowY:'auto',overflowX:'hidden'}}>
+          {TABS.map(t=>(
+            <button key={t.id} className="sidebar-item" onClick={()=>setTab(t.id)} title={!sidebarOpen?t.label:''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:sidebarOpen?'9px 12px':'9px 0',borderRadius:10,border:'none',background:tab===t.id?T.accent:'transparent',color:tab===t.id?'#000':T.textMuted,fontSize:13,fontWeight:tab===t.id?700:400,cursor:'pointer',textAlign:'left',transition:'all 0.15s',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
+              <span style={{fontSize:15,flexShrink:0}}>{t.icon}</span>
+              {sidebarOpen&&<span style={{overflow:'hidden',textOverflow:'ellipsis'}}>{t.label}</span>}
+            </button>
+          ))}
+        </nav>
+
+        {/* Bottom */}
+        <div style={{padding:'8px 6px',borderTop:`1px solid ${T.glassBorder}`,display:'flex',flexDirection:'column',gap:2}}>
+          <button onClick={()=>setDarkMode(!d)} title={!sidebarOpen?(d?'Light Mode':'Dark Mode'):''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:'8px 12px',borderRadius:10,border:'none',background:'transparent',color:T.textMuted,fontSize:13,cursor:'pointer',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
+            <span style={{flexShrink:0}}>{d?'☀️':'🌙'}</span>
+            {sidebarOpen&&(d?'Light Mode':'Dark Mode')}
+          </button>
+          {sidebarOpen&&<div style={{padding:'4px 12px',fontSize:10,color:T.textMuted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{session?.user?.email}</div>}
+          <button onClick={handleLogout} title={!sidebarOpen?'Sign Out':''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:'8px 12px',borderRadius:10,border:'none',background:'transparent',color:T.red,fontSize:13,cursor:'pointer',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
+            <span style={{flexShrink:0}}>🚪</span>
+            {sidebarOpen&&'Sign Out'}
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <div style={{flex:1,marginLeft:sidebarOpen?220:64,display:'flex',flexDirection:'column',position:'relative',zIndex:1,transition:'margin-left 0.25s ease'}}>
+
+
+        {/* Page content */}
+        <main style={{padding:'24px',flex:1}}>
+          {tab==='dashboard'&&<DashboardTab trades={trades} strategies={strategies} T={T} d={d} onAddTrade={()=>setShowTradeModal(true)}/>}
+          {tab==='trades'&&<TradesTab trades={trades} T={T} strategies={strategies} onAddTrade={()=>setShowTradeModal(true)} onNoTrade={handleNoTrade} onDelete={handleDelete}/>}
+          {tab==='pnl'&&<PnlTab trades={trades} T={T}/>}
+          {tab==='strategies'&&<StrategiesTab trades={trades} strategies={strategies} T={T} session={session} onRefresh={()=>fetchAll(session.user.id)}/>}
+          {tab==='calculator'&&<CalculatorTab T={T}/>}
+          {tab==='journal'&&<DailyJournalTab T={T} trades={trades} session={session}/>}
+          {tab==='pricing'&&(
+            <div style={{padding:'40px 0',maxWidth:1100,margin:'0 auto'}}>
+              <div style={{textAlign:'center',marginBottom:40}}>
+                <h1 style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:12}}>Plans for every trader</h1>
+                <p style={{color:T.textMuted,fontSize:16}}>Start free. Upgrade when ready. Cancel anytime.</p>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:20}}>
+                {[{name:'Starter',price:'$19.99',color:'#6b7280',features:['Unlimited trades','All asset types','Basic analytics','Strategy tracking','Monthly challenge']},{name:'Pro',price:'$29.99',color:T.accent,popular:true,features:['Everything in Starter','IBKR auto-sync','Advanced analytics + charts','P&L calendar','Time of day breakdown','Learning Hub']},{name:'Elite',price:'$49.99',color:'#a78bfa',features:['Everything in Pro','AI chart analysis','AI trade coaching','Pre-market AI briefing','Weekly performance report','Priority support']}].map(plan=>(
+                  <div key={plan.name} style={{background:plan.popular?`linear-gradient(135deg,${T.accent}15,${T.accent}08)`:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`,borderRadius:20,padding:28,position:'relative',display:'flex',flexDirection:'column'}}>
+                    {plan.popular&&<div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:T.accent,color:'#000',fontSize:11,fontWeight:700,padding:'4px 14px',borderRadius:20,whiteSpace:'nowrap'}}>MOST POPULAR</div>}
+                    <div style={{fontSize:12,fontWeight:700,color:plan.color,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>{plan.name}</div>
+                    <div style={{fontSize:38,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:20}}>{plan.price}<span style={{fontSize:14,fontWeight:400,color:T.textMuted}}>/mo</span></div>
+                    {plan.features.map(f=>(<div key={f} style={{display:'flex',gap:10,marginBottom:10}}><span style={{color:T.green,flexShrink:0}}>✓</span><span style={{color:T.text,fontSize:13}}>{f}</span></div>))}
+                    <button style={{width:'100%',padding:'13px',background:plan.popular?T.accent:'transparent',color:plan.popular?'#000':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:12,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:'auto',paddingTop:20}}>Get Started</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {tab==='about'&&(
+            <div style={{maxWidth:800,margin:'0 auto',padding:'40px 0'}}>
+              <div style={{textAlign:'center',marginBottom:48}}>
+                <h1 style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:16}}>Built by a trader.<br/>For every trader.</h1>
+                <p style={{color:T.textMuted,fontSize:16,lineHeight:1.8,maxWidth:600,margin:'0 auto'}}>Journifi was born from a simple frustration — when you're learning to trade, there's no single place that tracks ALL your trades, shows your patterns, holds you accountable to your rules, and teaches you at the same time.</p>
+              </div>
+              {[{icon:'📉',title:'The Problem',body:"Most traders lose money not because they don't have a strategy — but because they don't follow it. Revenge trades. Early exits. Broken rules. A month later you can't even remember what happened."},{icon:'💡',title:'The Idea',body:'Financial + Journey = Journifi. Every trade is a step in your financial journey. Journifi is the memory bank — the chart, the setup, the outcome, the lesson. All in one place.'},{icon:'🎯',title:'The Mission',body:'To give every trader — beginner to advanced, stocks to options to forex to crypto — the tools that professional prop firms give their traders. A structured journal. Real analytics. Honest feedback.'},{icon:'🚀',title:"Where We're Going",body:'AI chart analysis. Strategy rule tracking with P&L impact. Learning hub. Monthly challenges. IBKR auto-sync. A community. This is just the beginning.'}].map(item=>(
+                <div key={item.title} style={{background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:16,padding:28,marginBottom:16}}>
+                  <div style={{fontSize:28,marginBottom:12}}>{item.icon}</div>
+                  <h3 style={{fontSize:18,fontWeight:700,color:T.text,marginBottom:10}}>{item.title}</h3>
+                  <p style={{color:T.textMuted,fontSize:14,lineHeight:1.8}}>{item.body}</p>
+                </div>
+              ))}
+              <div style={{background:`linear-gradient(135deg,${T.accent}15,${T.accent}05)`,border:`1px solid ${T.accent}33`,borderRadius:16,padding:'32px 28px',textAlign:'center'}}>
+                <div style={{fontSize:32,marginBottom:12}}>👋</div>
+                <h3 style={{fontSize:20,fontWeight:700,color:T.text,marginBottom:10}}>From the founder</h3>
+                <p style={{color:T.textMuted,fontSize:14,lineHeight:1.8,maxWidth:540,margin:'0 auto'}}>"I'm Abhilash Rishi — AZ truck driver, day trader, and content creator. I built Journifi because I needed it myself. If it helps one trader stop repeating the same mistakes, it's worth it."</p>
+                <p style={{color:T.accent,fontWeight:600,fontSize:14,marginTop:16}}>— Abhilash Rishi, Founder · Journifi</p>
+              </div>
+            </div>
+          )}
+          {tab==='support'&&<SupportTab T={T}/>}
+        </main>
+      </div>
+
+      {showTradeModal&&<TradeModal T={T} session={session} strategies={strategies} onClose={()=>setShowTradeModal(false)} onSaved={()=>fetchAll(session.user.id)}/>}
+    </div></>
+  );
+}
