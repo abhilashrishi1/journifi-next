@@ -119,6 +119,89 @@ function DonutChart({ wins, losses, breakeven, T }) {
   );
 }
 
+// ── LANDING PAGE APP MOCKUPS (uses real chart components with sample data) ────
+function AppFrame({ T, children, label='app.journifi.com' }) {
+  return (
+    <div style={{background:T.sidebarBg,backdropFilter:'blur(24px)',border:`1px solid ${T.glassBorderStrong}`,borderRadius:18,overflow:'hidden',boxShadow:T.cardShadowHover}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',borderBottom:`1px solid ${T.glassBorder}`,background:T.headerBg}}>
+        <span style={{width:9,height:9,borderRadius:'50%',background:'#ef4444',opacity:0.7}}/>
+        <span style={{width:9,height:9,borderRadius:'50%',background:'#f59e0b',opacity:0.7}}/>
+        <span style={{width:9,height:9,borderRadius:'50%',background:'#22c55e',opacity:0.7}}/>
+        <span style={{marginLeft:10,fontSize:11,color:T.textMuted,letterSpacing:'0.02em'}}>{label}</span>
+      </div>
+      <div style={{padding:18}}>{children}</div>
+    </div>
+  );
+}
+
+function MockDashboard({ T }) {
+  const equity=[10000,10240,10180,10420,10390,10650,10800,10740,11020,11340,11280,11550,12180];
+  return (
+    <AppFrame T={T}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
+        {[{label:'Net Liquid Value',value:'$24,850.30'},{label:'Total P&L',value:'+$3,240.18',color:T.green},{label:'Win Rate',value:'68%',color:T.accent}].map(s=>(
+          <div key={s.label} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'10px 12px'}}>
+            <div style={{fontSize:10,color:T.textMuted,marginBottom:4}}>{s.label}</div>
+            <div style={{fontSize:15,fontWeight:800,color:s.color||T.text}}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'12px 14px',marginBottom:12}}>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:6}}>Equity Curve</div>
+        <MiniLineChart data={equity} color={T.accent} height={64}/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <div style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'12px 14px'}}>
+          <div style={{fontSize:11,color:T.textMuted,marginBottom:8}}>Trading Edge</div>
+          <DonutChart wins={41} losses={19} breakeven={2} T={T}/>
+        </div>
+        <div style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'12px 14px',display:'flex',flexDirection:'column',justifyContent:'center',gap:10}}>
+          <div><div style={{fontSize:10,color:T.textMuted}}>R-Multiple</div><div style={{fontSize:18,fontWeight:800,color:T.text}}>2.1R</div></div>
+          <div><div style={{fontSize:10,color:T.textMuted}}>Avg Win / Loss</div><div style={{fontSize:18,fontWeight:800,color:T.text}}>1.32</div></div>
+        </div>
+      </div>
+    </AppFrame>
+  );
+}
+
+function MockTrades({ T }) {
+  const rows=[
+    {ticker:'AAPL',dir:'Long',type:'Call',pnl:420},
+    {ticker:'TSLA',dir:'Short',type:'Put',pnl:-180},
+    {ticker:'SPY',dir:'Long',type:'Call',pnl:95},
+    {ticker:'NVDA',dir:'Long',type:'Call',pnl:610},
+    {ticker:'META',dir:'Short',type:'Stock',pnl:-75},
+  ];
+  return (
+    <AppFrame T={T}>
+      <div style={{fontSize:11,color:T.textMuted,marginBottom:10}}>Recent Trades</div>
+      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        {rows.map(r=>(
+          <div key={r.ticker} style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'8px 12px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontWeight:700,fontSize:13,color:T.text}}>{r.ticker}</span>
+              <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:6,background:r.dir==='Long'?T.greenBg:T.redBg,color:r.dir==='Long'?T.green:T.red}}>{r.dir}</span>
+              <span style={{fontSize:11,color:T.textMuted}}>{r.type}</span>
+            </div>
+            <span style={{fontSize:13,fontWeight:800,color:r.pnl>=0?T.green:T.red}}>{r.pnl>=0?'+':''}${Math.abs(r.pnl)}</span>
+          </div>
+        ))}
+      </div>
+    </AppFrame>
+  );
+}
+
+function MockAnalytics({ T }) {
+  const byDay=[{label:'Mon',value:180},{label:'Tue',value:-60},{label:'Wed',value:340},{label:'Thu',value:120},{label:'Fri',value:-40}];
+  return (
+    <AppFrame T={T}>
+      <div style={{fontSize:11,color:T.textMuted,marginBottom:10}}>P&L by Day</div>
+      <BarChart data={byDay} T={T}/>
+    </AppFrame>
+  );
+}
+
+
 function PnlCalendar({ trades, T }) {
   const [month, setMonth] = useState(new Date());
   const year=month.getFullYear(),mon=month.getMonth();
@@ -1455,32 +1538,33 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
         </div>
       </nav>
 
-      <section style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'120px 24px 80px',position:'relative',overflow:'hidden'}}>
-        <div style={{position:'absolute',width:700,height:700,borderRadius:'50%',background:T.orb1,filter:'blur(80px)',top:'-10%',left:'50%',transform:'translateX(-50%)',pointerEvents:'none'}}/>
-        <div style={{position:'absolute',width:500,height:500,borderRadius:'50%',background:T.orb2,filter:'blur(80px)',bottom:'5%',right:'-10%',pointerEvents:'none'}}/>
-        <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',opacity:d?0.03:0.04,pointerEvents:'none',userSelect:'none',fontSize:280,fontWeight:900,color:d?'#fff':'#000',letterSpacing:'-10px',fontFamily:"'IBM Plex Sans',system-ui,sans-serif"}}>J</div>
-        <div style={{display:'inline-flex',alignItems:'center',gap:8,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:30,padding:'7px 18px',fontSize:13,color:T.accent,fontWeight:600,marginBottom:32}}>
-          <span style={{width:6,height:6,borderRadius:'50%',background:T.accent,display:'inline-block',animation:'pulse 2s infinite'}}/>
-          Now live — built by a real trader
-        </div>
-        <div style={{marginBottom:24}}><Logo light={!d} size="lg"/></div>
-        <h1 style={{fontSize:'clamp(36px,6vw,72px)',fontWeight:900,letterSpacing:'-2px',lineHeight:1.1,marginBottom:20,maxWidth:800,color:T.text}}>Your Financial Journey,<br/><span style={{backgroundImage:T.accentGradient,WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent'}}>Tracked & Analyzed.</span></h1>
-        <p style={{fontSize:'clamp(15px,2vw,20px)',color:T.textMuted,maxWidth:580,lineHeight:1.7,marginBottom:40}}>The only trading journal that tracks ALL your trades — stocks, options, forex, futures, crypto — analyzes your patterns, and holds you accountable to your own rules.</p>
-        <div style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',marginBottom:60}}>
-          <button className="grad-btn" onClick={onSignup} style={{background:T.accentGradient,color:'#fff',border:'none',borderRadius:14,padding:'16px 36px',fontSize:17,fontWeight:800,cursor:'pointer',boxShadow:'0 0 40px rgba(139,92,246,0.35)'}}>Start Free — No Credit Card</button>
-          <button className="outline-btn" onClick={onLogin} style={{background:T.glassBg,backdropFilter:'blur(20px)',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'16px 32px',fontSize:17,fontWeight:600,cursor:'pointer'}}>Sign In →</button>
-        </div>
-        <div style={{display:'flex',gap:0,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:20,overflow:'hidden',flexWrap:'wrap'}}>
-          {[{value:'All Markets',label:'Stocks · Options · Forex · Futures · Crypto'},{value:'Rules Tracking',label:'Follow your strategy. See the P&L difference.'},{value:'AI Coaching',label:'Coming soon — your personal trading coach'},{value:'$0',label:'To get started'}].map((s,i,arr)=>(
-            <div key={s.value} style={{padding:'18px 28px',borderRight:i<arr.length-1?`1px solid ${T.glassBorder}`:'none',textAlign:'center',minWidth:160}}>
-              <div style={{fontSize:18,fontWeight:800,color:T.accent}}>{s.value}</div>
-              <div style={{fontSize:11,color:T.textMuted,marginTop:4}}>{s.label}</div>
+      <section style={{minHeight:'100vh',display:'flex',flexDirection:'column',justifyContent:'center',padding:'110px 24px 60px',position:'relative',overflow:'hidden',maxWidth:1280,margin:'0 auto'}}>
+        <div style={{position:'absolute',width:700,height:700,borderRadius:'50%',background:T.orb1,filter:'blur(80px)',top:'-10%',left:'10%',pointerEvents:'none'}}/>
+        <div style={{position:'absolute',width:500,height:500,borderRadius:'50%',background:T.orb2,filter:'blur(80px)',bottom:'5%',right:'-5%',pointerEvents:'none'}}/>
+        <div style={{display:'grid',gridTemplateColumns:'1.1fr 1fr',gap:56,alignItems:'center',position:'relative',zIndex:1}} className="hero-grid">
+          <div>
+            <div style={{display:'inline-flex',alignItems:'center',gap:8,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:30,padding:'7px 18px',fontSize:13,color:T.accent,fontWeight:600,marginBottom:28}}>
+              <span style={{width:6,height:6,borderRadius:'50%',background:T.accent,display:'inline-block',animation:'pulse 2s infinite'}}/>
+              Now live — built by a real trader
             </div>
-          ))}
-        </div>
-        <div style={{position:'absolute',bottom:32,left:'50%',transform:'translateX(-50%)',opacity:0.4,animation:'bounce 2s infinite',textAlign:'center'}}>
-          <div style={{fontSize:11,color:T.textMuted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:4}}>Scroll</div>
-          <div style={{fontSize:18,color:T.textMuted}}>↓</div>
+            <h1 style={{fontSize:'clamp(36px,5vw,64px)',fontWeight:900,letterSpacing:'-2px',lineHeight:1.1,marginBottom:20,color:T.text}}>Your Financial Journey,<br/><span style={{backgroundImage:T.accentGradient,WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent'}}>Tracked & Analyzed.</span></h1>
+            <p style={{fontSize:'clamp(15px,2vw,18px)',color:T.textMuted,maxWidth:520,lineHeight:1.7,marginBottom:36}}>The only trading journal that tracks ALL your trades — stocks, options, forex, futures, crypto — analyzes your patterns, and holds you accountable to your own rules.</p>
+            <div style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:48}}>
+              <button className="grad-btn" onClick={onSignup} style={{background:T.accentGradient,color:'#fff',border:'none',borderRadius:14,padding:'16px 36px',fontSize:17,fontWeight:800,cursor:'pointer',boxShadow:'0 0 40px rgba(139,92,246,0.35)'}}>Start Free — No Credit Card</button>
+              <button className="outline-btn" onClick={onLogin} style={{background:T.glassBg,backdropFilter:'blur(20px)',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'16px 32px',fontSize:17,fontWeight:600,cursor:'pointer'}}>Sign In →</button>
+            </div>
+            <div style={{display:'flex',gap:0,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:20,overflow:'hidden',flexWrap:'wrap'}}>
+              {[{value:'All Markets',label:'Stocks · Options · Forex · Futures · Crypto'},{value:'Rules Tracking',label:'Follow your strategy. See the P&L difference.'},{value:'$0',label:'To get started'}].map((s,i,arr)=>(
+                <div key={s.value} style={{padding:'16px 22px',borderRight:i<arr.length-1?`1px solid ${T.glassBorder}`:'none',minWidth:140}}>
+                  <div style={{fontSize:17,fontWeight:800,color:T.accent}}>{s.value}</div>
+                  <div style={{fontSize:11,color:T.textMuted,marginTop:4}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{transform:'perspective(1400px) rotateY(-6deg) rotateX(2deg)'}} className="hero-mockup">
+            <MockDashboard T={T}/>
+          </div>
         </div>
       </section>
 
@@ -1500,6 +1584,17 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
               <p style={{fontSize:13,color:T.textMuted,lineHeight:1.6}}>{f.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section style={{padding:'80px 24px',maxWidth:1100,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:48}}>
+          <div style={{display:'inline-block',background:T.accentDim,border:`1px solid ${T.accent}33`,borderRadius:30,padding:'5px 16px',fontSize:12,color:T.accent,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:20}}>See It In Action</div>
+          <h2 style={{fontSize:'clamp(28px,4vw,48px)',fontWeight:800,letterSpacing:'-1px',color:T.text}}>Every trade, every pattern, in one place.</h2>
+        </div>
+        <div className="showcase-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24}}>
+          <MockTrades T={T}/>
+          <MockAnalytics T={T}/>
         </div>
       </section>
 
@@ -1752,6 +1847,7 @@ export default function JournifiApp() {
     .grad-btn:active{transform:translateY(0);filter:brightness(0.97);}
     .outline-btn{transition:all 0.18s ease;}
     .outline-btn:hover{border-color:${T.accent}88!important;background:${T.accentDim}!important;}
+    @media(max-width:900px){.hero-grid{grid-template-columns:1fr!important;text-align:center;}.hero-grid>div:first-child{display:flex;flex-direction:column;align-items:center;}.hero-grid>div:first-child>*{margin-left:auto;margin-right:auto;}.hero-mockup{transform:none!important;margin-top:32px;}.showcase-grid{grid-template-columns:1fr!important;}}
     button{font-family:inherit;}
     input,textarea,select{font-family:inherit;}
   `;
