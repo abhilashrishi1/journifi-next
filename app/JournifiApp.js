@@ -42,7 +42,7 @@ function getDateRange(preset) {
 
 function Logo({ light, size='md' }) {
   const t = light ? '#0a0c14' : '#fff';
-  const a = '#00C4B4';
+  const gid = `logoGrad${size}`;
   const configs = {
     sm:{w:120,h:28,fs:16,jx:28,tx:38,ty:20,pts:'2,22 2,6 6,16 11,10 16,13 21,3',cr:2,cx:21,cy:3,sw:2},
     md:{w:148,h:32,fs:19,jx:33,tx:43,ty:23,pts:'2,26 2,8 8,20 14,12 20,16 26,4',cr:2.2,cx:26,cy:4,sw:2.2},
@@ -51,9 +51,10 @@ function Logo({ light, size='md' }) {
   const c = configs[size]||configs.md;
   return (
     <svg width={c.w} height={c.h} viewBox={`0 0 ${c.w} ${c.h}`} fill="none">
-      <polyline points={c.pts} stroke={a} strokeWidth={c.sw} strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-      <circle cx={c.cx} cy={c.cy} r={c.cr} fill={a}/>
-      <text x={c.jx} y={c.ty} fontFamily="'IBM Plex Sans',system-ui,sans-serif" fontWeight="800" fontSize={c.fs} fill={a}>J</text>
+      <defs><linearGradient id={gid} x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#3B82F6"/><stop offset="100%" stopColor="#8B5CF6"/></linearGradient></defs>
+      <polyline points={c.pts} stroke={`url(#${gid})`} strokeWidth={c.sw} strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <circle cx={c.cx} cy={c.cy} r={c.cr} fill="#8B5CF6"/>
+      <text x={c.jx} y={c.ty} fontFamily="'IBM Plex Sans',system-ui,sans-serif" fontWeight="800" fontSize={c.fs} fill={`url(#${gid})`}>J</text>
       <text x={c.tx} y={c.ty} fontFamily="'IBM Plex Sans',system-ui,sans-serif" fontWeight="800" fontSize={c.fs} fill={t}>ournifi</text>
     </svg>
   );
@@ -361,7 +362,7 @@ function TradeModal({ T, session, strategies, onClose, onSaved }) {
           {error&&<p style={{color:T.red,fontSize:13,marginTop:12}}>{error}</p>}
           <div style={{display:'flex',gap:10,marginTop:20}}>
             <button type="button" onClick={onClose} style={{flex:1,padding:'12px',background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:10,fontSize:15,cursor:'pointer'}}>Cancel</button>
-            <button type="submit" style={{flex:2,padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Trade'}</button>
+            <button type="submit" style={{flex:2,padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Trade'}</button>
           </div>
         </form>
       </div>
@@ -418,7 +419,7 @@ function StrategyModal({ T, session, onClose, onSaved, existing }) {
           {error&&<p style={{color:T.red,fontSize:13,marginTop:12}}>{error}</p>}
           <div style={{display:'flex',gap:10,marginTop:20}}>
             <button type="button" onClick={onClose} style={{flex:1,padding:'12px',background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:10,fontSize:15,cursor:'pointer'}}>Cancel</button>
-            <button type="submit" style={{flex:2,padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Strategy'}</button>
+            <button type="submit" style={{flex:2,padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Strategy'}</button>
           </div>
         </form>
       </div>
@@ -1450,7 +1451,7 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
           <button onClick={onToggleDark} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'7px 10px',cursor:'pointer',fontSize:14,color:T.textMuted,backdropFilter:'blur(10px)'}}>{d?'☀':'🌙'}</button>
           <button onClick={onLogin} style={{background:'transparent',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:500,cursor:'pointer'}}>Log In</button>
-          <button onClick={onSignup} style={{background:T.accent,color:'#000',border:'none',borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:700,cursor:'pointer'}}>Get Started Free</button>
+          <button onClick={onSignup} style={{background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:700,cursor:'pointer'}}>Get Started Free</button>
         </div>
       </nav>
 
@@ -1463,10 +1464,10 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
           Now live — built by a real trader
         </div>
         <div style={{marginBottom:24}}><Logo light={!d} size="lg"/></div>
-        <h1 style={{fontSize:'clamp(36px,6vw,72px)',fontWeight:900,letterSpacing:'-2px',lineHeight:1.1,marginBottom:20,maxWidth:800,color:T.text}}>Your Financial Journey,<br/><span style={{color:T.accent}}>Tracked & Analyzed.</span></h1>
+        <h1 style={{fontSize:'clamp(36px,6vw,72px)',fontWeight:900,letterSpacing:'-2px',lineHeight:1.1,marginBottom:20,maxWidth:800,color:T.text}}>Your Financial Journey,<br/><span style={{backgroundImage:T.accentGradient,WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent'}}>Tracked & Analyzed.</span></h1>
         <p style={{fontSize:'clamp(15px,2vw,20px)',color:T.textMuted,maxWidth:580,lineHeight:1.7,marginBottom:40}}>The only trading journal that tracks ALL your trades — stocks, options, forex, futures, crypto — analyzes your patterns, and holds you accountable to your own rules.</p>
         <div style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',marginBottom:60}}>
-          <button onClick={onSignup} style={{background:T.accent,color:'#000',border:'none',borderRadius:14,padding:'16px 36px',fontSize:17,fontWeight:800,cursor:'pointer',boxShadow:`0 0 40px ${T.accent}44`}}>Start Free — No Credit Card</button>
+          <button onClick={onSignup} style={{background:T.accentGradient,color:'#fff',border:'none',borderRadius:14,padding:'16px 36px',fontSize:17,fontWeight:800,cursor:'pointer',boxShadow:'0 0 40px rgba(139,92,246,0.35)'}}>Start Free — No Credit Card</button>
           <button onClick={onLogin} style={{background:T.glassBg,backdropFilter:'blur(20px)',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'16px 32px',fontSize:17,fontWeight:600,cursor:'pointer'}}>Sign In →</button>
         </div>
         <div style={{display:'flex',gap:0,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:20,overflow:'hidden',flexWrap:'wrap'}}>
@@ -1547,14 +1548,14 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:16}}>
           {[{name:'Free',price:'$0',color:'#6b7280',features:['10 trades','Manual entry','Basic stats']},{name:'Pro',price:'$29.99',color:T.accent,popular:true,features:['Unlimited trades','All asset types','IBKR sync','Analytics','Strategy tracking','Learning Hub']},{name:'Elite',price:'$49.99',color:'#a78bfa',features:['Everything in Pro','AI chart analysis','AI coaching','Pre-market briefing']}].map(plan=>(
             <div key={plan.name}
-              style={{background:plan.popular?`linear-gradient(135deg,${T.accent}12,${T.accent}06)`:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`,borderRadius:20,padding:'28px 24px',position:'relative',transition:'all 0.25s'}}
+              style={{background:plan.popular?`linear-gradient(135deg,${T.accent}14,${T.purple}0a)`:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`,borderRadius:20,padding:'28px 24px',position:'relative',transition:'all 0.25s'}}
               onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow=`0 0 30px ${T.accent}22`;}}
               onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none';}}>
               {plan.popular&&<div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:T.accent,color:'#000',fontSize:11,fontWeight:700,padding:'4px 14px',borderRadius:20,whiteSpace:'nowrap'}}>MOST POPULAR</div>}
               <div style={{fontSize:12,fontWeight:700,color:plan.color,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>{plan.name}</div>
               <div style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:20}}>{plan.price}<span style={{fontSize:14,fontWeight:400,color:T.textMuted}}>/mo</span></div>
               {plan.features.map(f=>(<div key={f} style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}><span style={{color:T.green}}>✓</span><span style={{color:T.text,fontSize:13}}>{f}</span></div>))}
-              <button onClick={onSignup} style={{width:'100%',padding:'12px',background:plan.popular?T.accent:'transparent',color:plan.popular?'#000':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer',marginTop:20}}>Get Started</button>
+              <button onClick={onSignup} style={{width:'100%',padding:'12px',background:plan.popular?T.accentGradient:'transparent',color:plan.popular?'#fff':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer',marginTop:20}}>Get Started</button>
             </div>
           ))}
         </div>
@@ -1614,7 +1615,7 @@ function AuthPage({ T, d, mode, onToggleDark, onBack }) {
                 <p style={{color:T.textMuted,fontSize:13}}>Enter your email and we'll send a reset link.</p>
                 <input style={inp} type="email" placeholder="Your email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required/>
                 {authError&&<p style={{color:T.red,fontSize:13}}>{authError}</p>}
-                <button type="submit" style={{padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={forgotLoading}>{forgotLoading?'Sending...':'Send Reset Link'}</button>
+                <button type="submit" style={{padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={forgotLoading}>{forgotLoading?'Sending...':'Send Reset Link'}</button>
               </form>
             )}
           </div>
@@ -1636,7 +1637,7 @@ function AuthPage({ T, d, mode, onToggleDark, onBack }) {
               </div>
               {authError&&<p style={{color:T.red,fontSize:13}}>{authError}</p>}
               {mode==='login'&&<button type="button" onClick={()=>{setShowForgot(true);setForgotEmail(email);setAuthError('');}} style={{background:'transparent',border:'none',color:T.accent,fontSize:13,cursor:'pointer',textAlign:'right',padding:0}}>Forgot password?</button>}
-              <button type="submit" style={{padding:'12px',background:T.accent,color:'#000',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:4}}>{mode==='login'?'Sign In':'Create Account'}</button>
+              <button type="submit" style={{padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:4}}>{mode==='login'?'Sign In':'Create Account'}</button>
             </form>
           </>
         )}
@@ -1710,11 +1711,13 @@ export default function JournifiApp() {
     text:d?'#eef1f8':'#0d1117',
     textMuted:d?'#5a6478':'#64748b',
     textFaint:d?'#252d3d':'#e2e8f0',
-    // Accent - teal stays as brand
-    accent:'#00C4B4',
-    accentLight:'#00ddd0',
-    accentDim:d?'rgba(0,196,180,0.1)':'rgba(0,196,180,0.08)',
-    accentGlow:d?'0 0 24px rgba(0,196,180,0.3)':'0 0 16px rgba(0,196,180,0.15)',
+    // Accent - blue-to-purple gradient brand
+    accent:'#3B82F6',
+    accentLight:'#60A5FA',
+    accentDim:d?'rgba(59,130,246,0.1)':'rgba(59,130,246,0.08)',
+    accentGlow:d?'0 0 24px rgba(139,92,246,0.35)':'0 0 16px rgba(139,92,246,0.18)',
+    accentGradient:'linear-gradient(135deg,#3B82F6 0%,#8B5CF6 100%)',
+    accentGradientHover:'linear-gradient(135deg,#2563EB 0%,#7C3AED 100%)',
     // Gold accent for premium feel
     gold:'#f59e0b',
     goldDim:d?'rgba(245,158,11,0.12)':'rgba(245,158,11,0.08)',
@@ -1725,7 +1728,7 @@ export default function JournifiApp() {
     green:'#22c55e',greenBg:d?'rgba(34,197,94,0.12)':'rgba(34,197,94,0.1)',
     red:'#ef4444',redBg:d?'rgba(239,68,68,0.12)':'rgba(239,68,68,0.1)',
     // Ambient orbs
-    orb1:d?'rgba(0,196,180,0.08)':'rgba(0,196,180,0.1)',
+    orb1:d?'rgba(59,130,246,0.08)':'rgba(59,130,246,0.1)',
     orb2:d?'rgba(139,92,246,0.06)':'rgba(139,92,246,0.08)',
     orb3:d?'rgba(245,158,11,0.04)':'rgba(245,158,11,0.06)',
   };
@@ -1790,7 +1793,7 @@ export default function JournifiApp() {
         {/* Nav */}
         <nav style={{flex:1,padding:'8px 6px',display:'flex',flexDirection:'column',gap:2,overflowY:'auto',overflowX:'hidden'}}>
           {TABS.map(t=>(
-            <button key={t.id} className="sidebar-item" onClick={()=>setTab(t.id)} title={!sidebarOpen?t.label:''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:sidebarOpen?'9px 12px':'9px 0',borderRadius:10,border:'none',background:tab===t.id?T.accent:'transparent',color:tab===t.id?'#000':T.textMuted,fontSize:13,fontWeight:tab===t.id?700:400,cursor:'pointer',textAlign:'left',transition:'all 0.15s',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
+            <button key={t.id} className="sidebar-item" onClick={()=>setTab(t.id)} title={!sidebarOpen?t.label:''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:sidebarOpen?'9px 12px':'9px 0',borderRadius:10,border:'none',background:tab===t.id?T.accentGradient:'transparent',color:tab===t.id?'#fff':T.textMuted,fontSize:13,fontWeight:tab===t.id?700:400,cursor:'pointer',textAlign:'left',transition:'all 0.15s',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
               <span style={{fontSize:15,flexShrink:0}}>{t.icon}</span>
               {sidebarOpen&&<span style={{overflow:'hidden',textOverflow:'ellipsis'}}>{t.label}</span>}
             </button>
@@ -1831,12 +1834,12 @@ export default function JournifiApp() {
               </div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:20}}>
                 {[{name:'Starter',price:'$19.99',color:'#6b7280',features:['Unlimited trades','All asset types','Basic analytics','Strategy tracking','Monthly challenge']},{name:'Pro',price:'$29.99',color:T.accent,popular:true,features:['Everything in Starter','IBKR auto-sync','Advanced analytics + charts','P&L calendar','Time of day breakdown','Learning Hub']},{name:'Elite',price:'$49.99',color:'#a78bfa',features:['Everything in Pro','AI chart analysis','AI trade coaching','Pre-market AI briefing','Weekly performance report','Priority support']}].map(plan=>(
-                  <div key={plan.name} style={{background:plan.popular?`linear-gradient(135deg,${T.accent}15,${T.accent}08)`:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`,borderRadius:20,padding:28,position:'relative',display:'flex',flexDirection:'column'}}>
+                  <div key={plan.name} style={{background:plan.popular?`linear-gradient(135deg,${T.accent}18,${T.purple}0c)`:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${plan.popular?T.accent+'44':T.glassBorder}`,borderRadius:20,padding:28,position:'relative',display:'flex',flexDirection:'column'}}>
                     {plan.popular&&<div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:T.accent,color:'#000',fontSize:11,fontWeight:700,padding:'4px 14px',borderRadius:20,whiteSpace:'nowrap'}}>MOST POPULAR</div>}
                     <div style={{fontSize:12,fontWeight:700,color:plan.color,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>{plan.name}</div>
                     <div style={{fontSize:38,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:20}}>{plan.price}<span style={{fontSize:14,fontWeight:400,color:T.textMuted}}>/mo</span></div>
                     {plan.features.map(f=>(<div key={f} style={{display:'flex',gap:10,marginBottom:10}}><span style={{color:T.green,flexShrink:0}}>✓</span><span style={{color:T.text,fontSize:13}}>{f}</span></div>))}
-                    <button style={{width:'100%',padding:'13px',background:plan.popular?T.accent:'transparent',color:plan.popular?'#000':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:12,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:'auto',paddingTop:20}}>Get Started</button>
+                    <button style={{width:'100%',padding:'13px',background:plan.popular?T.accentGradient:'transparent',color:plan.popular?'#fff':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:12,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:'auto',paddingTop:20}}>Get Started</button>
                   </div>
                 ))}
               </div>
