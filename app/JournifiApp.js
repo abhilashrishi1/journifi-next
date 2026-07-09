@@ -362,7 +362,7 @@ function TradeModal({ T, session, strategies, onClose, onSaved }) {
           {error&&<p style={{color:T.red,fontSize:13,marginTop:12}}>{error}</p>}
           <div style={{display:'flex',gap:10,marginTop:20}}>
             <button type="button" onClick={onClose} style={{flex:1,padding:'12px',background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:10,fontSize:15,cursor:'pointer'}}>Cancel</button>
-            <button type="submit" style={{flex:2,padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Trade'}</button>
+            <button type="submit" className="grad-btn" style={{flex:2,padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Trade'}</button>
           </div>
         </form>
       </div>
@@ -419,7 +419,7 @@ function StrategyModal({ T, session, onClose, onSaved, existing }) {
           {error&&<p style={{color:T.red,fontSize:13,marginTop:12}}>{error}</p>}
           <div style={{display:'flex',gap:10,marginTop:20}}>
             <button type="button" onClick={onClose} style={{flex:1,padding:'12px',background:'transparent',color:T.textMuted,border:`1px solid ${T.glassBorder}`,borderRadius:10,fontSize:15,cursor:'pointer'}}>Cancel</button>
-            <button type="submit" style={{flex:2,padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Strategy'}</button>
+            <button type="submit" className="grad-btn" style={{flex:2,padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={saving}>{saving?'Saving...':'Save Strategy'}</button>
           </div>
         </form>
       </div>
@@ -1450,8 +1450,8 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
         <Logo light={!d}/>
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
           <button onClick={onToggleDark} style={{background:T.glassBg,border:`1px solid ${T.glassBorder}`,borderRadius:8,padding:'7px 10px',cursor:'pointer',fontSize:14,color:T.textMuted,backdropFilter:'blur(10px)'}}>{d?'☀':'🌙'}</button>
-          <button onClick={onLogin} style={{background:'transparent',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:500,cursor:'pointer'}}>Log In</button>
-          <button onClick={onSignup} style={{background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:700,cursor:'pointer'}}>Get Started Free</button>
+          <button className="outline-btn" onClick={onLogin} style={{background:'transparent',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:500,cursor:'pointer'}}>Log In</button>
+          <button className="grad-btn" onClick={onSignup} style={{background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,padding:'9px 20px',fontSize:14,fontWeight:700,cursor:'pointer'}}>Get Started Free</button>
         </div>
       </nav>
 
@@ -1467,8 +1467,8 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
         <h1 style={{fontSize:'clamp(36px,6vw,72px)',fontWeight:900,letterSpacing:'-2px',lineHeight:1.1,marginBottom:20,maxWidth:800,color:T.text}}>Your Financial Journey,<br/><span style={{backgroundImage:T.accentGradient,WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent'}}>Tracked & Analyzed.</span></h1>
         <p style={{fontSize:'clamp(15px,2vw,20px)',color:T.textMuted,maxWidth:580,lineHeight:1.7,marginBottom:40}}>The only trading journal that tracks ALL your trades — stocks, options, forex, futures, crypto — analyzes your patterns, and holds you accountable to your own rules.</p>
         <div style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',marginBottom:60}}>
-          <button onClick={onSignup} style={{background:T.accentGradient,color:'#fff',border:'none',borderRadius:14,padding:'16px 36px',fontSize:17,fontWeight:800,cursor:'pointer',boxShadow:'0 0 40px rgba(139,92,246,0.35)'}}>Start Free — No Credit Card</button>
-          <button onClick={onLogin} style={{background:T.glassBg,backdropFilter:'blur(20px)',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'16px 32px',fontSize:17,fontWeight:600,cursor:'pointer'}}>Sign In →</button>
+          <button className="grad-btn" onClick={onSignup} style={{background:T.accentGradient,color:'#fff',border:'none',borderRadius:14,padding:'16px 36px',fontSize:17,fontWeight:800,cursor:'pointer',boxShadow:'0 0 40px rgba(139,92,246,0.35)'}}>Start Free — No Credit Card</button>
+          <button className="outline-btn" onClick={onLogin} style={{background:T.glassBg,backdropFilter:'blur(20px)',color:T.text,border:`1px solid ${T.glassBorder}`,borderRadius:14,padding:'16px 32px',fontSize:17,fontWeight:600,cursor:'pointer'}}>Sign In →</button>
         </div>
         <div style={{display:'flex',gap:0,background:T.glassBg,backdropFilter:'blur(20px)',border:`1px solid ${T.glassBorder}`,borderRadius:20,overflow:'hidden',flexWrap:'wrap'}}>
           {[{value:'All Markets',label:'Stocks · Options · Forex · Futures · Crypto'},{value:'Rules Tracking',label:'Follow your strategy. See the P&L difference.'},{value:'AI Coaching',label:'Coming soon — your personal trading coach'},{value:'$0',label:'To get started'}].map((s,i,arr)=>(
@@ -1555,7 +1555,7 @@ function LandingPage({ T, d, onLogin, onSignup, onToggleDark }) {
               <div style={{fontSize:12,fontWeight:700,color:plan.color,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>{plan.name}</div>
               <div style={{fontSize:36,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:20}}>{plan.price}<span style={{fontSize:14,fontWeight:400,color:T.textMuted}}>/mo</span></div>
               {plan.features.map(f=>(<div key={f} style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}><span style={{color:T.green}}>✓</span><span style={{color:T.text,fontSize:13}}>{f}</span></div>))}
-              <button onClick={onSignup} style={{width:'100%',padding:'12px',background:plan.popular?T.accentGradient:'transparent',color:plan.popular?'#fff':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer',marginTop:20}}>Get Started</button>
+              <button onClick={onSignup} className={plan.popular?'grad-btn':'outline-btn'} style={{width:'100%',padding:'12px',background:plan.popular?T.accentGradient:'transparent',color:plan.popular?'#fff':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer',marginTop:20}}>Get Started</button>
             </div>
           ))}
         </div>
@@ -1615,7 +1615,7 @@ function AuthPage({ T, d, mode, onToggleDark, onBack }) {
                 <p style={{color:T.textMuted,fontSize:13}}>Enter your email and we'll send a reset link.</p>
                 <input style={inp} type="email" placeholder="Your email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} required/>
                 {authError&&<p style={{color:T.red,fontSize:13}}>{authError}</p>}
-                <button type="submit" style={{padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={forgotLoading}>{forgotLoading?'Sending...':'Send Reset Link'}</button>
+                <button type="submit" className="grad-btn" style={{padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer'}} disabled={forgotLoading}>{forgotLoading?'Sending...':'Send Reset Link'}</button>
               </form>
             )}
           </div>
@@ -1637,7 +1637,7 @@ function AuthPage({ T, d, mode, onToggleDark, onBack }) {
               </div>
               {authError&&<p style={{color:T.red,fontSize:13}}>{authError}</p>}
               {mode==='login'&&<button type="button" onClick={()=>{setShowForgot(true);setForgotEmail(email);setAuthError('');}} style={{background:'transparent',border:'none',color:T.accent,fontSize:13,cursor:'pointer',textAlign:'right',padding:0}}>Forgot password?</button>}
-              <button type="submit" style={{padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:4}}>{mode==='login'?'Sign In':'Create Account'}</button>
+              <button type="submit" className="grad-btn" style={{padding:'12px',background:T.accentGradient,color:'#fff',border:'none',borderRadius:10,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:4}}>{mode==='login'?'Sign In':'Create Account'}</button>
             </form>
           </>
         )}
@@ -1744,8 +1744,14 @@ export default function JournifiApp() {
     @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
     @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-8px);}}
-    .trow:hover td{background:${d?'rgba(0,196,180,0.03)':'rgba(0,196,180,0.02)'}!important;}
-    .sidebar-item:hover{background:${d?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'}!important;}
+    .trow:hover td{background:${d?'rgba(59,130,246,0.05)':'rgba(59,130,246,0.03)'}!important;}
+    .sidebar-item:hover:not(.active){background:${d?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'}!important;}
+    .sidebar-item.active:hover{filter:brightness(1.1);}
+    .grad-btn{transition:transform 0.18s ease,box-shadow 0.18s ease,filter 0.18s ease;}
+    .grad-btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(139,92,246,0.4)!important;filter:brightness(1.08);}
+    .grad-btn:active{transform:translateY(0);filter:brightness(0.97);}
+    .outline-btn{transition:all 0.18s ease;}
+    .outline-btn:hover{border-color:${T.accent}88!important;background:${T.accentDim}!important;}
     button{font-family:inherit;}
     input,textarea,select{font-family:inherit;}
   `;
@@ -1793,7 +1799,7 @@ export default function JournifiApp() {
         {/* Nav */}
         <nav style={{flex:1,padding:'8px 6px',display:'flex',flexDirection:'column',gap:2,overflowY:'auto',overflowX:'hidden'}}>
           {TABS.map(t=>(
-            <button key={t.id} className="sidebar-item" onClick={()=>setTab(t.id)} title={!sidebarOpen?t.label:''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:sidebarOpen?'9px 12px':'9px 0',borderRadius:10,border:'none',background:tab===t.id?T.accentGradient:'transparent',color:tab===t.id?'#fff':T.textMuted,fontSize:13,fontWeight:tab===t.id?700:400,cursor:'pointer',textAlign:'left',transition:'all 0.15s',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
+            <button key={t.id} className={`sidebar-item${tab===t.id?' active':''}`} onClick={()=>setTab(t.id)} title={!sidebarOpen?t.label:''} style={{display:'flex',alignItems:'center',gap:sidebarOpen?10:0,justifyContent:sidebarOpen?'flex-start':'center',padding:sidebarOpen?'9px 12px':'9px 0',borderRadius:10,border:'none',background:tab===t.id?T.accentGradient:'transparent',color:tab===t.id?'#fff':T.textMuted,fontSize:13,fontWeight:tab===t.id?700:400,cursor:'pointer',textAlign:'left',transition:'all 0.15s',width:'100%',overflow:'hidden',whiteSpace:'nowrap'}}>
               <span style={{fontSize:15,flexShrink:0}}>{t.icon}</span>
               {sidebarOpen&&<span style={{overflow:'hidden',textOverflow:'ellipsis'}}>{t.label}</span>}
             </button>
@@ -1839,7 +1845,7 @@ export default function JournifiApp() {
                     <div style={{fontSize:12,fontWeight:700,color:plan.color,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>{plan.name}</div>
                     <div style={{fontSize:38,fontWeight:800,color:T.text,letterSpacing:'-1px',marginBottom:20}}>{plan.price}<span style={{fontSize:14,fontWeight:400,color:T.textMuted}}>/mo</span></div>
                     {plan.features.map(f=>(<div key={f} style={{display:'flex',gap:10,marginBottom:10}}><span style={{color:T.green,flexShrink:0}}>✓</span><span style={{color:T.text,fontSize:13}}>{f}</span></div>))}
-                    <button style={{width:'100%',padding:'13px',background:plan.popular?T.accentGradient:'transparent',color:plan.popular?'#fff':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:12,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:'auto',paddingTop:20}}>Get Started</button>
+                    <button className={plan.popular?'grad-btn':'outline-btn'} style={{width:'100%',padding:'13px',background:plan.popular?T.accentGradient:'transparent',color:plan.popular?'#fff':T.text,border:`1px solid ${plan.popular?T.accent:T.glassBorder}`,borderRadius:12,fontSize:15,fontWeight:700,cursor:'pointer',marginTop:'auto',paddingTop:20}}>Get Started</button>
                   </div>
                 ))}
               </div>
